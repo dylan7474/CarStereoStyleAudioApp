@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CarStereo Infotainment v3.4</title>
+    <title>CarStereo Infotainment v3.5</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
@@ -28,15 +28,21 @@
             background: var(--glass); border: 1px solid rgba(255,255,255,0.05);
             transition: all 0.3s ease; border-radius: 1.25rem;
         }
-        .lib-p-active { background: var(--accent) !important; color: white !important; box-shadow: 0 0 15px var(--accent); }
+        /* v3.5 Enhanced Toggle Glow */
+        .lib-p-active { 
+            background: var(--accent) !important; 
+            color: white !important; 
+            box-shadow: 0 0 15px var(--accent); 
+            border-color: transparent;
+        }
         .preset-label { font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.7; }
         
         input[type=range]#seek-bar { 
-            width: 100%; height: 8px; border-radius: 0; background: rgba(255,255,255,0.1); 
+            width: 100%; height: 10px; border-radius: 0; background: rgba(255,255,255,0.1); 
             appearance: none; outline: none; margin: 0; 
         }
         input[type=range]#seek-bar::-webkit-slider-thumb {
-            appearance: none; width: 22px; height: 22px; 
+            appearance: none; width: 24px; height: 24px; 
             background: var(--accent); border-radius: 50%; cursor: pointer;
             box-shadow: 0 0 15px var(--accent); border: 2px solid white;
         }
@@ -46,7 +52,7 @@
 
     <header class="flex justify-between items-center mb-6">
         <div>
-            <h1 class="text-2xl font-bold tracking-tight">INFOTAINMENT <span class="text-emerald-500 font-light">3.4</span></h1>
+            <h1 class="text-2xl font-bold tracking-tight">INFOTAINMENT <span class="text-emerald-500 font-light">3.5</span></h1>
             <p class="text-[10px] uppercase tracking-[0.3em] opacity-40">Connected Audio System</p>
         </div>
         <div class="flex gap-3">
@@ -58,7 +64,7 @@
     <main id="view-player" class="flex-1 flex flex-col gap-6">
         <div class="flex-1 glass-card lcd-display flex flex-col justify-between relative overflow-hidden">
             <div class="p-8">
-                <div class="mb-2 text-[10px] font-bold tracking-widest text-emerald-500 uppercase" id="mode-indicator">Streaming Active</div>
+                <div class="mb-2 text-[10px] font-bold tracking-widest text-emerald-500 uppercase" id="mode-indicator">SYSTEM ONLINE</div>
                 <h2 class="text-4xl sm:text-5xl font-bold mb-2 tracking-tight truncate" id="display-title">Ready</h2>
                 <p class="text-lg opacity-40 font-light truncate" id="display-subtitle">Select source</p>
             </div>
@@ -145,6 +151,83 @@
     audio.addEventListener('play', () => { document.getElementById('play-btn').textContent = '||'; });
     audio.addEventListener('pause', () => { document.getElementById('play-btn').textContent = '▶'; });
 
+    // --- v3.5 FIXED TOGGLE LOGIC ---
+    function toggleQuickAssign(id, type, data) {
+        const existing = state.presets[id];
+        // Compare URLs as the unique identifier
+        const isMatch = existing && existing.data && existing.data.url === data.url;
+
+        if (isMatch) {
+            delete state.presets[id];
+            console.log(`Preset ${id} Cleared`);
+        } else {
+            state.presets[id] = { type, data };
+            console.log(`Preset ${id} Assigned to ${data.name || data.bookName}`);
+        }
+        
+        sync('POST', state);
+        updatePresetLabels();
+        renderLibrary(); // Re-render to update the P-button highlights
+    }
+
+    function renderLibrary() {
+        const query = document.getElementById('lib-search').value.toLowerCase();
+        const container = document.getElementById('library-content');
+        container.innerHTML = '';
+        
+        // Radio Stations
+        state.radioStations.filter(s => s.name.toLowerCase().includes(query)).forEach((s, idx) => {
+            container.appendChild(createLibEntry(s.name, () => playRadio(s), 'radio', s, idx));
+        });
+        
+        // Audiobooks
+        Object.keys(state.books).forEach(bookName => {
+            state.books[bookName].filter(t => t.name.toLowerCase().includes(query) || bookName.toLowerCase().includes(query)).forEach((t, i) => {
+                const bookData = { bookName, trackIdx: i, url: t.url, name: t.name };
+                const label = (bookName === t.name) ? t.name : `${bookName} - ${t.name}`;
+                container.appendChild(createLibEntry(label, () => playBook(bookName, i), 'book', bookData));
+            });
+        });
+    }
+
+    function createLibEntry(label, tuneFn, type, data, idx = null) {
+        const div = document.createElement('div');
+        div.className = "glass-card p-6 flex flex-col gap-4";
+        
+        // v3.5 Logic for Highlighted P-Buttons
+        const pButtons = [1,2,3,4,5,6].map(p => {
+            const preset = state.presets[p];
+            const isActive = preset && preset.data && preset.data.url === data.url;
+            return `<button onclick="this.assign(${p})" class="w-10 h-10 rounded-lg text-[10px] font-black transition-all ${isActive ? 'lib-p-active' : 'bg-white/5 hover:bg-white/10'}">P${p}</button>`;
+        }).join('');
+        
+        let tools = (state.isManagerMode && type === 'radio' && idx !== null) ? `
+            <div class="flex gap-2 pt-2 border-t border-white/5">
+                <button onclick="this.edit(${idx})" class="flex-1 bg-blue-500/10 text-blue-400 py-3 rounded-xl text-[10px] font-bold">RENAME</button>
+                <button onclick="this.del(${idx})" class="flex-1 bg-red-500/10 text-red-400 py-3 rounded-xl text-[10px] font-bold">DELETE</button>
+            </div>` : '';
+
+        div.innerHTML = `
+            <div class="font-bold truncate text-lg tracking-tight">${label}</div>
+            <div class="flex items-center gap-3">
+                <button class="flex-1 bg-emerald-500 text-black py-3 rounded-xl font-bold text-xs active:scale-95 transition-transform" onclick="this.tune()">TUNE</button>
+                <div class="flex gap-1">${pButtons}</div>
+            </div>${tools}`;
+        
+        div.querySelector('button.bg-emerald-500').tune = tuneFn;
+        div.querySelectorAll('button[onclick^="this.assign"]').forEach(b => {
+            const p = b.getAttribute('onclick').match(/\d+/)[0];
+            b.onclick = () => toggleQuickAssign(p, type, data);
+        });
+        
+        if (state.isManagerMode && type === 'radio') {
+            div.querySelector('button.bg-blue-500/10').edit = editRadio;
+            div.querySelector('button.bg-red-500/10').del = deleteRadio;
+        }
+        return div;
+    }
+
+    // --- REMAINING LOGIC (STABLE FROM v3.4) ---
     function smartSeek(seconds) {
         if (!audio.src || isNaN(audio.duration)) return;
         audio.currentTime = Math.max(0, Math.min(audio.currentTime + seconds, audio.duration));
@@ -160,8 +243,6 @@
         document.getElementById('mgr-toggle').textContent = state.isManagerMode ? "DONE" : "MANAGE RADIO";
         renderLibrary(); 
     }
-
-    function toggleRadioForm() { document.getElementById('radio-form').classList.toggle('hidden'); }
 
     function playBook(bookName, trackIdx) {
         const track = state.books[bookName][trackIdx];
@@ -213,64 +294,6 @@
         }
     }
 
-    function renderLibrary() {
-        const query = document.getElementById('lib-search').value.toLowerCase();
-        const container = document.getElementById('library-content');
-        container.innerHTML = '';
-        
-        state.radioStations.filter(s => s.name.toLowerCase().includes(query)).forEach((s, idx) => {
-            container.appendChild(createLibEntry(s.name, () => playRadio(s), 'radio', s, idx));
-        });
-        
-        Object.keys(state.books).forEach(bookName => {
-            state.books[bookName].filter(t => t.name.toLowerCase().includes(query) || bookName.toLowerCase().includes(query)).forEach((t, i) => {
-                const bookData = { bookName, trackIdx: i, url: t.url, name: t.name };
-                const label = (bookName === t.name) ? t.name : `${bookName} - ${t.name}`;
-                container.appendChild(createLibEntry(label, () => playBook(bookName, i), 'book', bookData));
-            });
-        });
-    }
-
-    function createLibEntry(label, tuneFn, type, data, idx = null) {
-        const div = document.createElement('div');
-        div.className = "glass-card p-6 flex flex-col gap-4";
-        
-        let tools = (state.isManagerMode && type === 'radio' && idx !== null) ? `
-            <div class="flex gap-2 pt-2 border-t border-white/5">
-                <button onclick="this.edit(${idx})" class="flex-1 bg-blue-500/10 text-blue-400 py-3 rounded-xl text-[10px] font-bold">RENAME</button>
-                <button onclick="this.del(${idx})" class="flex-1 bg-red-500/10 text-red-400 py-3 rounded-xl text-[10px] font-bold">DELETE</button>
-            </div>` : '';
-
-        const pButtons = [1,2,3,4,5,6].map(p => {
-            const activePreset = state.presets[p];
-            const isActive = activePreset && activePreset.type === type && activePreset.data.url === data.url;
-            return `<button onclick="this.assign(${p})" class="w-10 h-10 rounded-lg text-[10px] font-black ${isActive ? 'lib-p-active' : 'bg-white/5'}">P${p}</button>`;
-        }).join('');
-        
-        div.innerHTML = `
-            <div class="font-bold truncate text-lg tracking-tight">${label}</div>
-            <div class="flex items-center gap-3">
-                <button class="flex-1 bg-emerald-500 text-black py-3 rounded-xl font-bold text-xs" onclick="this.tune()">TUNE</button>
-                <div class="flex gap-1">${pButtons}</div>
-            </div>${tools}`;
-        
-        div.querySelector('button.bg-emerald-500').tune = tuneFn;
-        div.querySelectorAll('button[onclick^="this.assign"]').forEach(b => {
-            const p = b.getAttribute('onclick').match(/\d+/)[0];
-            b.onclick = () => {
-                state.presets[p] = { type, data };
-                sync('POST', state);
-                updatePresetLabels();
-                renderLibrary();
-            };
-        });
-        if (state.isManagerMode && type === 'radio') {
-            div.querySelector('button.bg-blue-500/10').edit = editRadio;
-            div.querySelector('button.bg-red-500/10').del = deleteRadio;
-        }
-        return div;
-    }
-
     function editRadio(idx) {
         const s = state.radioStations[idx];
         const n = prompt("New Name:", s.name);
@@ -285,7 +308,7 @@
     function addRadioStation() {
         const n = document.getElementById('radio-name').value;
         const u = document.getElementById('radio-url').value;
-        if (n && u) { state.radioStations.push({ name: n, url: u }); sync('POST', state); renderLibrary(); toggleRadioForm(); }
+        if (n && u) { state.radioStations.push({ name: n, url: u }); sync('POST', state); renderLibrary(); }
     }
 
     async function sync(method = 'GET', body = null) {
@@ -299,6 +322,7 @@
 
     function togglePlay() { audio.paused ? audio.play() : audio.pause(); }
     function toggleDayMode() { document.body.classList.toggle('day-mode'); }
+    function toggleRadioForm() { document.getElementById('radio-form').classList.toggle('hidden'); }
 
     audio.ontimeupdate = () => {
         const bar = document.getElementById('seek-bar');
