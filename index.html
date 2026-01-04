@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CarStereo Infotainment v3.2</title>
+    <title>CarStereo Infotainment v3.3</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
@@ -31,7 +31,6 @@
         .lib-p-active { background: var(--accent) !important; color: white !important; box-shadow: 0 0 15px var(--accent); }
         .preset-label { font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.7; }
         
-        /* Fixed Full Width Seek Bar Styling */
         input[type=range]#seek-bar { 
             width: 100%; height: 8px; border-radius: 0; background: rgba(255,255,255,0.1); 
             appearance: none; outline: none; margin: 0; 
@@ -41,16 +40,13 @@
             background: var(--accent); border-radius: 50%; cursor: pointer;
             box-shadow: 0 0 15px var(--accent); border: 2px solid white;
         }
-        input[type=range]#vol-control {
-            width: 100%; height: 6px; border-radius: 3px; appearance: none; background: rgba(255,255,255,0.1);
-        }
     </style>
 </head>
 <body class="h-screen flex flex-col overflow-hidden p-4 sm:p-6">
 
     <header class="flex justify-between items-center mb-6">
         <div>
-            <h1 class="text-2xl font-bold tracking-tight">INFOTAINMENT <span class="text-emerald-500 font-light">3.2</span></h1>
+            <h1 class="text-2xl font-bold tracking-tight">INFOTAINMENT <span class="text-emerald-500 font-light">3.3</span></h1>
             <p class="text-[10px] uppercase tracking-[0.3em] opacity-40">Connected Audio System</p>
         </div>
         <div class="flex gap-3">
@@ -133,6 +129,14 @@
     const USER_ID = new URLSearchParams(window.location.search).get('user') || 'default_stereo';
     let state = { presets: {}, radioStations: [], books: {}, currentSource: null, playbackPositions: {}, longPressTimer: null, isHolding: false };
     const audio = document.getElementById('audio-player');
+
+    // v3.3 Fix: Listen for native audio events to update the play/pause icon
+    audio.addEventListener('play', () => { 
+        document.getElementById('play-btn').textContent = '||'; 
+    });
+    audio.addEventListener('pause', () => { 
+        document.getElementById('play-btn').textContent = '▶'; 
+    });
 
     function smartSeek(seconds) {
         if (!audio.src || isNaN(audio.duration)) return;
