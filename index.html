@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CarStereo AudioPlayer v2.7</title>
+    <title>CarStereo AudioPlayer v2.8</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         :root { --main-bg: #050505; --main-text: #10b981; --panel-bg: rgba(6, 78, 59, 0.1); --border: #064e3b; }
@@ -21,8 +21,8 @@
 <body class="h-screen flex flex-col overflow-hidden">
     <header class="p-4 flex justify-between items-center border-b border-emerald-900/30">
         <div class="flex flex-col">
-            <h1 class="text-xl font-bold tracking-tighter lcd-glow">CAR UNIT v2.7</h1>
-            <div id="v-tag" class="text-[10px] opacity-50">PRESET LABEL FIX ACTIVE</div>
+            <h1 class="text-xl font-bold tracking-tighter lcd-glow">CAR UNIT v2.8</h1>
+            <div id="v-tag" class="text-[10px] opacity-50">FILENAME PRESETS ACTIVE</div>
         </div>
         <div class="flex gap-2">
             <button onclick="toggleDayMode()" class="safe-btn border border-emerald-900 text-[10px]">☀️/🌙</button>
@@ -132,7 +132,7 @@
     }
 
     async function scanServer() {
-        appendLog("Scanning v2.7: Checking /books...");
+        appendLog("Scanning v2.8: Checking /books...");
         try {
             const res = await fetch('./books/');
             if (!res.ok) return;
@@ -140,7 +140,8 @@
             const parser = new DOMParser();
             const doc = parser.parseFromString(text, 'text/html');
             const links = Array.from(doc.querySelectorAll('a')).map(a => a.getAttribute('href')).filter(h => h && !h.startsWith('?') && !h.startsWith('/'));
-            state.books = { "Uncategorized": [] };
+            
+            state.books = {}; // Clear existing
             for (const link of links) {
                 if (link.endsWith('/')) {
                     const bookName = decodeURIComponent(link.replace(/\/$/, ''));
@@ -150,10 +151,12 @@
                         .map(h => ({ name: decodeURIComponent(h), url: `./books/${link}${h}` }));
                     if (tracks.length > 0) state.books[bookName] = tracks;
                 } else if (link.toLowerCase().endsWith('.mp3')) {
-                    state.books["Uncategorized"].push({ name: decodeURIComponent(link), url: `./books/${link}` });
+                    // Treat root files as individual "Books" named after the file
+                    const fileName = decodeURIComponent(link);
+                    state.books[fileName] = [{ name: fileName, url: `./books/${link}` }];
                 }
             }
-            if (state.books["Uncategorized"].length === 0) delete state.books["Uncategorized"];
+            appendLog(`Scan complete. Found ${Object.keys(state.books).length} items.`);
             renderLibrary();
         } catch (e) { appendLog("Scan failed: " + e.message); }
     }
@@ -192,7 +195,8 @@
             const label = document.getElementById(`label-${i}`);
             const p = state.presets[i];
             if (p) {
-                label.textContent = p.type === 'radio' ? p.data.name : (p.data.bookName || p.data.name);
+                // Prioritize specific name/filename over category
+                label.textContent = p.type === 'radio' ? p.data.name : (p.data.name || p.data.bookName);
             } else {
                 label.textContent = "";
             }
@@ -209,7 +213,9 @@
         Object.keys(state.books).forEach(bookName => {
             state.books[bookName].filter(t => t.name.toLowerCase().includes(query) || bookName.toLowerCase().includes(query)).forEach((t, i) => {
                 const bookData = { bookName, trackIdx: i, url: t.url, name: t.name };
-                container.appendChild(createLibEntry(`${bookName} - ${t.name}`, () => playBook(bookName, i), 'book', bookData));
+                // Display only the filename for items without a category folder
+                const displayLabel = (bookName === t.name) ? t.name : `${bookName} - ${t.name}`;
+                container.appendChild(createLibEntry(displayLabel, () => playBook(bookName, i), 'book', bookData));
             });
         });
     }
@@ -264,7 +270,7 @@
         state.currentSource = { type: 'book', data: { bookName, trackIdx, url: track.url, name: track.name } };
         audio.src = track.url;
         document.getElementById('display-title').textContent = track.name.toUpperCase();
-        document.getElementById('display-subtitle').textContent = bookName.toUpperCase();
+        document.getElementById('display-subtitle').textContent = (bookName === track.name) ? "FILE" : bookName.toUpperCase();
         document.getElementById('playback-info').style.opacity = "1";
         const trackKey = `server:${track.url}`;
         if (state.playbackPositions[trackKey]) audio.currentTime = state.playbackPositions[trackKey];
@@ -291,7 +297,7 @@
     function formatTime(s) { if(isNaN(s)) return "00:00"; const m=Math.floor(s/60); const sec=Math.floor(s%60); return `${m.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`; }
     function togglePlay() { audio.paused ? audio.play() : audio.pause(); }
     async function init() {
-        appendLog("Car Stereo Init v2.7");
+        appendLog("Car Stereo Init v2.8");
         const data = await sync('GET');
         if (data) { Object.assign(state, data); }
         await scanServer();
