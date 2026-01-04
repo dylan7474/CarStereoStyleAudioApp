@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CarStereo AudioPlayer v2.8</title>
+    <title>CarStereo AudioPlayer v2.9</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         :root { --main-bg: #050505; --main-text: #10b981; --panel-bg: rgba(6, 78, 59, 0.1); --border: #064e3b; }
@@ -16,13 +16,15 @@
         input[type=range] { accent-color: #10b981; height: 16px; width: 100%; cursor: pointer; }
         .safe-btn { padding: 12px 16px; font-weight: bold; text-transform: uppercase; border-radius: 12px; transition: opacity 0.2s; }
         .safe-btn:active { opacity: 0.6; }
+        /* v2.9 Highlight for active library preset buttons */
+        .lib-p-active { background-color: #10b981 !important; color: #000 !important; font-weight: bold; }
     </style>
 </head>
 <body class="h-screen flex flex-col overflow-hidden">
     <header class="p-4 flex justify-between items-center border-b border-emerald-900/30">
         <div class="flex flex-col">
-            <h1 class="text-xl font-bold tracking-tighter lcd-glow">CAR UNIT v2.8</h1>
-            <div id="v-tag" class="text-[10px] opacity-50">FILENAME PRESETS ACTIVE</div>
+            <h1 class="text-xl font-bold tracking-tighter lcd-glow">CAR UNIT v2.9</h1>
+            <div id="v-tag" class="text-[10px] opacity-50">PRESET TOGGLE & FEEDBACK</div>
         </div>
         <div class="flex gap-2">
             <button onclick="toggleDayMode()" class="safe-btn border border-emerald-900 text-[10px]">☀️/🌙</button>
@@ -111,6 +113,7 @@
     function toggleView(v) {
         document.getElementById('overlay-library').classList.toggle('hidden', v !== 'library');
         document.getElementById('overlay-logs').classList.toggle('hidden', v !== 'logs');
+        if (v === 'library') renderLibrary();
     }
     function toggleRadioForm() { document.getElementById('radio-form').classList.toggle('hidden'); }
     function toggleManager() { 
@@ -132,7 +135,7 @@
     }
 
     async function scanServer() {
-        appendLog("Scanning v2.8: Checking /books...");
+        appendLog("Scanning v2.9: Checking /books...");
         try {
             const res = await fetch('./books/');
             if (!res.ok) return;
@@ -141,7 +144,7 @@
             const doc = parser.parseFromString(text, 'text/html');
             const links = Array.from(doc.querySelectorAll('a')).map(a => a.getAttribute('href')).filter(h => h && !h.startsWith('?') && !h.startsWith('/'));
             
-            state.books = {}; // Clear existing
+            state.books = {}; 
             for (const link of links) {
                 if (link.endsWith('/')) {
                     const bookName = decodeURIComponent(link.replace(/\/$/, ''));
@@ -151,12 +154,11 @@
                         .map(h => ({ name: decodeURIComponent(h), url: `./books/${link}${h}` }));
                     if (tracks.length > 0) state.books[bookName] = tracks;
                 } else if (link.toLowerCase().endsWith('.mp3')) {
-                    // Treat root files as individual "Books" named after the file
                     const fileName = decodeURIComponent(link);
                     state.books[fileName] = [{ name: fileName, url: `./books/${link}` }];
                 }
             }
-            appendLog(`Scan complete. Found ${Object.keys(state.books).length} items.`);
+            appendLog(`Scan complete.`);
             renderLibrary();
         } catch (e) { appendLog("Scan failed: " + e.message); }
     }
@@ -183,11 +185,23 @@
         }
     }
 
-    function quickAssign(id, type, data) {
-        state.presets[id] = { type, data };
+    // v2.9 Toggle logic for Quick Assign
+    function toggleQuickAssign(id, type, data) {
+        const existing = state.presets[id];
+        const isMatch = existing && 
+                       existing.type === type && 
+                       (type === 'radio' ? existing.data.url === data.url : existing.data.url === data.url);
+
+        if (isMatch) {
+            delete state.presets[id];
+            appendLog(`Cleared P${id}`);
+        } else {
+            state.presets[id] = { type, data };
+            appendLog(`Assigned P${id}`);
+        }
         saveAllData();
         updatePresetLabels();
-        appendLog(`Quick Assign P${id}`);
+        renderLibrary(); // Force refresh to update button colors
     }
 
     function updatePresetLabels() {
@@ -195,7 +209,6 @@
             const label = document.getElementById(`label-${i}`);
             const p = state.presets[i];
             if (p) {
-                // Prioritize specific name/filename over category
                 label.textContent = p.type === 'radio' ? p.data.name : (p.data.name || p.data.bookName);
             } else {
                 label.textContent = "";
@@ -213,7 +226,6 @@
         Object.keys(state.books).forEach(bookName => {
             state.books[bookName].filter(t => t.name.toLowerCase().includes(query) || bookName.toLowerCase().includes(query)).forEach((t, i) => {
                 const bookData = { bookName, trackIdx: i, url: t.url, name: t.name };
-                // Display only the filename for items without a category folder
                 const displayLabel = (bookName === t.name) ? t.name : `${bookName} - ${t.name}`;
                 container.appendChild(createLibEntry(displayLabel, () => playBook(bookName, i), 'book', bookData));
             });
@@ -228,18 +240,26 @@
                 <button onclick="this.edit(${idx})" class="bg-blue-900 safe-btn flex-1 text-[10px]">EDIT NAME/URL</button>
                 <button onclick="this.del(${idx})" class="bg-red-900 safe-btn flex-1 text-[10px]">DELETE</button>
             </div>` : '';
+        
+        // v2.9 Logic to check if a preset button should be highlighted
+        const pButtons = [1,2,3,4,5,6].map(p => {
+            const activePreset = state.presets[p];
+            const isActive = activePreset && activePreset.type === type && activePreset.data.url === data.url;
+            const activeClass = isActive ? "lib-p-active" : "";
+            return `<button onclick="this.assign(${p})" class="bg-zinc-700 px-3 py-2 rounded-lg text-[10px] font-bold ${activeClass}">P${p}</button>`;
+        }).join('');
+
         div.innerHTML = `
             <div class="font-bold truncate text-lg">${label}</div>
             <div class="flex flex-wrap gap-2">
                 <button class="safe-btn bg-emerald-600 text-black flex-1" onclick="this.tune()">TUNE</button>
-                <div class="flex gap-1">
-                    ${[1,2,3,4,5,6].map(p => `<button onclick="this.assign(${p})" class="bg-zinc-700 px-3 py-2 rounded-lg text-[10px] font-bold">P${p}</button>`).join('')}
-                </div>
+                <div class="flex gap-1">${pButtons}</div>
             </div>${managementTools}`;
+        
         div.querySelector('button.bg-emerald-600').tune = tuneFn;
         div.querySelectorAll('button[onclick^="this.assign"]').forEach(b => {
             const p = b.getAttribute('onclick').match(/\d+/)[0];
-            b.onclick = () => quickAssign(p, type, data);
+            b.onclick = () => toggleQuickAssign(p, type, data);
         });
         if (state.isManagerMode && type === 'radio') {
             div.querySelector('button.bg-blue-900').edit = editRadio;
@@ -297,7 +317,7 @@
     function formatTime(s) { if(isNaN(s)) return "00:00"; const m=Math.floor(s/60); const sec=Math.floor(s%60); return `${m.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`; }
     function togglePlay() { audio.paused ? audio.play() : audio.pause(); }
     async function init() {
-        appendLog("Car Stereo Init v2.8");
+        appendLog("Car Stereo Init v2.9");
         const data = await sync('GET');
         if (data) { Object.assign(state, data); }
         await scanServer();
