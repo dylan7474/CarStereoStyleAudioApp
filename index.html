@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CarStereo AudioPlayer v2.5</title>
+    <title>CarStereo AudioPlayer v2.6</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         :root { --main-bg: #050505; --main-text: #10b981; --panel-bg: rgba(6, 78, 59, 0.1); --border: #064e3b; }
@@ -24,8 +24,8 @@
 
     <header class="p-4 flex justify-between items-center border-b border-emerald-900/30">
         <div class="flex flex-col">
-            <h1 class="text-xl font-bold tracking-tighter lcd-glow">CAR UNIT v2.5</h1>
-            <div id="v-tag" class="text-[10px] opacity-50">DRIVE-SAFE EDITION</div>
+            <h1 class="text-xl font-bold tracking-tighter lcd-glow">CAR UNIT v2.6</h1>
+            <div id="v-tag" class="text-[10px] opacity-50">STATION MANAGEMENT ACTIVE</div>
         </div>
         <div class="flex gap-2">
             <button onclick="toggleDayMode()" class="safe-btn border border-emerald-900 text-[10px]">☀️/🌙</button>
@@ -73,7 +73,10 @@
     <div id="overlay-library" class="fixed inset-0 bg-black z-50 p-6 hidden flex flex-col">
         <div class="flex justify-between items-center mb-4">
             <h2 class="text-2xl font-bold">LIBRARY</h2>
-            <button onclick="toggleView('player')" class="safe-btn bg-red-900 text-white">CLOSE</button>
+            <div class="flex gap-2">
+                <button id="mgr-toggle" onclick="toggleManager()" class="safe-btn border border-blue-900 text-[10px]">Manage Radio</button>
+                <button onclick="toggleView('player')" class="safe-btn bg-red-900 text-white">CLOSE</button>
+            </div>
         </div>
         
         <input type="text" id="lib-search" oninput="renderLibrary()" placeholder="SEARCH BOOKS/STATIONS..." class="w-full bg-zinc-900 border-2 border-emerald-900 p-4 rounded-xl mb-4 text-emerald-400">
@@ -100,7 +103,7 @@
 <script>
     const BOOKMARKS_ENDPOINT = './api/bookmarks';
     const USER_ID = new URLSearchParams(window.location.search).get('user') || 'default_stereo';
-    let state = { presets: {}, radioStations: [], books: {}, currentSource: null, playbackPositions: {}, longPressTimer: null, isHolding: false };
+    let state = { presets: {}, radioStations: [], books: {}, currentSource: null, playbackPositions: {}, longPressTimer: null, isHolding: false, isManagerMode: false };
     const audio = document.getElementById('audio-player');
 
     function appendLog(msg) {
@@ -112,22 +115,18 @@
         log.scrollTop = log.scrollHeight;
     }
 
-    // --- UI HELPERS ---
-    function toggleDayMode() {
-        document.body.classList.toggle('day-mode');
-        appendLog("Toggle: Day/Night Mode");
-    }
-
+    function toggleDayMode() { document.body.classList.toggle('day-mode'); }
     function toggleView(v) {
         document.getElementById('overlay-library').classList.toggle('hidden', v !== 'library');
         document.getElementById('overlay-logs').classList.toggle('hidden', v !== 'logs');
     }
-
-    function toggleRadioForm() {
-        document.getElementById('radio-form').classList.toggle('hidden');
+    function toggleRadioForm() { document.getElementById('radio-form').classList.toggle('hidden'); }
+    function toggleManager() { 
+        state.isManagerMode = !state.isManagerMode; 
+        document.getElementById('mgr-toggle').textContent = state.isManagerMode ? "Done Managing" : "Manage Radio";
+        renderLibrary(); 
     }
 
-    // --- PLAYBACK & SYNC ---
     audio.addEventListener('play', () => { document.getElementById('play-btn').textContent = '||'; });
     audio.addEventListener('pause', () => { document.getElementById('play-btn').textContent = '▶'; });
 
@@ -141,7 +140,7 @@
     }
 
     async function scanServer() {
-        appendLog("Scanning /books...");
+        appendLog("Scanning v2.6: Checking /books...");
         try {
             const res = await fetch('./books/');
             if (!res.ok) return;
@@ -168,19 +167,16 @@
         } catch (e) { appendLog("Scan failed: " + e.message); }
     }
 
-    // --- PRESET ACTIONS ---
     function handlePresetStart(id) {
         state.isHolding = false;
         state.longPressTimer = setTimeout(() => {
             if (state.currentSource) {
                 state.presets[id] = state.currentSource;
                 saveAllData();
-                const btn = document.getElementById(`btn-${id}`);
-                btn.classList.add('bg-emerald-400', 'text-black');
-                setTimeout(() => btn.classList.remove('bg-emerald-400', 'text-black'), 500);
+                document.getElementById(`btn-${id}`).classList.add('bg-emerald-400', 'text-black');
+                setTimeout(() => document.getElementById(`btn-${id}`).classList.remove('bg-emerald-400', 'text-black'), 500);
                 updatePresetLabels();
                 state.isHolding = true;
-                appendLog(`Preset ${id} Saved`);
             }
         }, 1000);
     }
@@ -197,7 +193,7 @@
         state.presets[id] = { type, data };
         saveAllData();
         updatePresetLabels();
-        appendLog(`Quick Assign: P${id} -> ${data.name || data.bookName}`);
+        appendLog(`Quick Assign P${id}`);
     }
 
     function updatePresetLabels() {
@@ -208,19 +204,16 @@
         }
     }
 
-    // --- LIBRARY ACTIONS ---
     function renderLibrary() {
         const query = document.getElementById('lib-search').value.toLowerCase();
         const container = document.getElementById('library-content');
         container.innerHTML = '';
 
-        // Render Stations
         state.radioStations.filter(s => s.name.toLowerCase().includes(query)).forEach((s, idx) => {
             const div = createLibEntry(s.name, () => playRadio(s), 'radio', s, idx);
             container.appendChild(div);
         });
 
-        // Render Books
         Object.keys(state.books).forEach(bookName => {
             state.books[bookName].filter(t => t.name.toLowerCase().includes(query) || bookName.toLowerCase().includes(query)).forEach((t, i) => {
                 const bookData = { bookName, trackIdx: i, url: t.url, name: t.name };
@@ -233,6 +226,17 @@
     function createLibEntry(label, tuneFn, type, data, idx = null) {
         const div = document.createElement('div');
         div.className = "flex flex-col bg-zinc-900 border-2 border-zinc-800 p-4 rounded-2xl gap-3";
+        
+        let managementTools = '';
+        if (state.isManagerMode && type === 'radio' && idx !== null) {
+            managementTools = `
+                <div class="flex gap-2 w-full mt-2">
+                    <button onclick="this.edit(${idx})" class="bg-blue-900 safe-btn flex-1 text-[10px]">EDIT NAME/URL</button>
+                    <button onclick="this.del(${idx})" class="bg-red-900 safe-btn flex-1 text-[10px]">DELETE</button>
+                </div>
+            `;
+        }
+
         div.innerHTML = `
             <div class="font-bold truncate text-lg">${label}</div>
             <div class="flex flex-wrap gap-2">
@@ -240,25 +244,39 @@
                 <div class="flex gap-1">
                     ${[1,2,3,4,5,6].map(p => `<button onclick="this.assign(${p})" class="bg-zinc-700 px-3 py-2 rounded-lg text-[10px] font-bold">P${p}</button>`).join('')}
                 </div>
-                ${idx !== null ? `<button onclick="this.del(${idx})" class="bg-red-900 px-4 py-2 rounded-lg text-[10px]">DEL</button>` : ''}
             </div>
+            ${managementTools}
         `;
-        // Attach logic to elements inside div (helper to avoid stringify issues)
+        
         div.querySelector('button.bg-emerald-600').tune = tuneFn;
         div.querySelectorAll('button[onclick^="this.assign"]').forEach(b => {
             const p = b.getAttribute('onclick').match(/\d+/)[0];
             b.onclick = () => quickAssign(p, type, data);
         });
-        if (idx !== null) div.querySelector('button.bg-red-900').onclick = () => deleteRadio(idx);
+
+        if (state.isManagerMode && type === 'radio') {
+            div.querySelector('button.bg-blue-900').edit = editRadio;
+            div.querySelector('button.bg-red-900').del = deleteRadio;
+        }
         return div;
     }
 
-    // --- AUDIO LOGIC ---
+    function editRadio(idx) {
+        const s = state.radioStations[idx];
+        const n = prompt("Edit Name:", s.name);
+        const u = prompt("Edit URL:", s.url);
+        if (n && u) { state.radioStations[idx] = {name:n, url:u}; saveAllData(); renderLibrary(); }
+    }
+
+    function deleteRadio(idx) {
+        if(confirm("Delete Station?")) { state.radioStations.splice(idx, 1); saveAllData(); renderLibrary(); }
+    }
+
     function playRadio(station) {
         state.currentSource = { type: 'radio', data: station };
         audio.src = station.url;
         document.getElementById('display-title').textContent = station.name.toUpperCase();
-        document.getElementById('display-subtitle').textContent = "LIVE RADIO";
+        document.getElementById('display-subtitle').textContent = "RADIO";
         document.getElementById('playback-info').style.opacity = "0.2";
         audio.play(); toggleView('player');
     }
@@ -273,10 +291,6 @@
         const trackKey = `server:${track.url}`;
         if (state.playbackPositions[trackKey]) audio.currentTime = state.playbackPositions[trackKey];
         audio.play(); toggleView('player');
-    }
-
-    function deleteRadio(idx) {
-        if(confirm("Delete Station?")) { state.radioStations.splice(idx, 1); saveAllData(); renderLibrary(); }
     }
 
     function addRadioStation() {
@@ -304,7 +318,7 @@
     function togglePlay() { audio.paused ? audio.play() : audio.pause(); }
 
     async function init() {
-        appendLog("Car Stereo Init v2.5");
+        appendLog("Car Stereo Init v2.6");
         const data = await sync('GET');
         if (data) { Object.assign(state, data); }
         await scanServer();
