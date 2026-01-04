@@ -19,6 +19,7 @@ CarStereoStyleAudioApp is a lightweight web app that presents a car-stereo-inspi
 - Preset buttons respond to quick taps again for starting playback.
 - Offline-first library browsing now uses cached metadata when connectivity drops.
 - Restored the subtitle line to show source details during playback.
+- Phone info pane now shows the current playback timestamp.
 
 ## Improvement Ideas
 

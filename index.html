@@ -58,7 +58,10 @@
     <main id="view-player" class="flex-1 flex flex-col gap-6">
         <div class="flex-none h-28 sm:h-auto sm:flex-1 glass-card lcd-display flex flex-col justify-between relative overflow-hidden">
             <div class="p-4 sm:p-8">
-                <div class="mb-2 text-[10px] font-bold tracking-widest text-emerald-500 uppercase" id="mode-indicator">Connected</div>
+                <div class="flex items-center justify-between mb-2">
+                    <div class="text-[10px] font-bold tracking-widest text-emerald-500 uppercase" id="mode-indicator">Connected</div>
+                    <div class="text-[10px] font-bold tracking-widest text-emerald-500 uppercase sm:hidden" id="current-time-mobile">00:00</div>
+                </div>
                 <h2 class="text-3xl sm:text-5xl font-bold mb-2 tracking-tight truncate" id="display-title">Ready</h2>
                 <p class="text-xs sm:text-sm font-semibold tracking-[0.3em] opacity-60 truncate" id="display-subtitle">STANDBY</p>
             </div>
@@ -152,6 +155,7 @@
     const defaultModeText = modeIndicator.textContent;
     const sleepDisplay = document.getElementById('sleep-timer-display');
     const defaultSleepText = sleepDisplay.textContent;
+    const currentTimeMobile = document.getElementById('current-time-mobile');
     function showModeMessage(message, timeout = 3000) {
         if (sleepEndTime) return;
         modeIndicator.textContent = message;
@@ -199,7 +203,7 @@
         bar.addEventListener('mousedown', () => isDragging = true);
         bar.addEventListener('touchstart', () => isDragging = true);
         bar.addEventListener('input', (e) => { 
-            document.getElementById('current-time').textContent = formatTime(e.target.value); 
+            updateCurrentTimeDisplay(e.target.value);
         });
         bar.addEventListener('change', (e) => {
             audio.currentTime = e.target.value;
@@ -389,11 +393,17 @@
                 bar.value = audio.currentTime;
                 bar.max = audio.duration || 0;
             });
-            document.getElementById('current-time').textContent = formatTime(audio.currentTime);
+            updateCurrentTimeDisplay(audio.currentTime);
             document.getElementById('duration').textContent = formatTime(audio.duration);
             if (state.currentSource?.type === 'book' && Math.floor(audio.currentTime) % 10 === 0) savePosition();
         }
     };
+
+    function updateCurrentTimeDisplay(value) {
+        const timeText = formatTime(value);
+        document.getElementById('current-time').textContent = timeText;
+        if (currentTimeMobile) currentTimeMobile.textContent = timeText;
+    }
 
     function formatTime(s) { if(isNaN(s)) return "00:00"; const m=Math.floor(s/60); const sec=Math.floor(s%60); return `${m.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`; }
     function togglePlay() { audio.paused ? audio.play() : audio.pause(); }
