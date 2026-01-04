@@ -11,15 +11,17 @@
         .preset-btn { transition: all 0.2s; border: 2px solid #064e3b; background: #0a0a0a; }
         .preset-btn:active { background: #10b981; color: #000; transform: scale(0.95); }
         input[type=range] { accent-color: #10b981; height: 12px; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-thumb { background: #064e3b; border-radius: 4px; }
     </style>
 </head>
 <body class="h-screen flex flex-col overflow-hidden">
 
     <header class="p-4 flex justify-between items-center border-b border-emerald-900/30">
-        <h1 class="text-xl font-bold tracking-tighter lcd-glow">CAR UNIT v2.0</h1>
+        <h1 class="text-xl font-bold tracking-tighter lcd-glow">CAR UNIT v2.1</h1>
         <div class="flex gap-4 text-xs">
             <button onclick="toggleView('library')" class="uppercase border border-emerald-900 px-3 py-1 rounded">Library</button>
-            <button onclick="toggleView('settings')" class="uppercase border border-emerald-900 px-3 py-1 rounded">Setup</button>
+            <button onclick="toggleView('logs')" class="uppercase border border-emerald-900 px-3 py-1 rounded">Logs</button>
         </div>
     </header>
 
@@ -39,12 +41,12 @@
         </div>
 
         <div class="grid grid-cols-3 gap-3">
-            <button onmousedown="handlePresetStart(1)" onmouseup="handlePresetEnd(1)" class="preset-btn h-16 rounded-xl text-2xl font-bold" id="btn-1">1</button>
-            <button onmousedown="handlePresetStart(2)" onmouseup="handlePresetEnd(2)" class="preset-btn h-16 rounded-xl text-2xl font-bold" id="btn-2">2</button>
-            <button onmousedown="handlePresetStart(3)" onmouseup="handlePresetEnd(3)" class="preset-btn h-16 rounded-xl text-2xl font-bold" id="btn-3">3</button>
-            <button onmousedown="handlePresetStart(4)" onmouseup="handlePresetEnd(4)" class="preset-btn h-16 rounded-xl text-2xl font-bold" id="btn-4">4</button>
-            <button onmousedown="handlePresetStart(5)" onmouseup="handlePresetEnd(5)" class="preset-btn h-16 rounded-xl text-2xl font-bold" id="btn-5">5</button>
-            <button onmousedown="handlePresetStart(6)" onmouseup="handlePresetEnd(6)" class="preset-btn h-16 rounded-xl text-2xl font-bold" id="btn-6">6</button>
+            <button onmousedown="handlePresetStart(1)" onmouseup="handlePresetEnd(1)" ontouchstart="handlePresetStart(1)" ontouchend="handlePresetEnd(1)" class="preset-btn h-16 rounded-xl text-2xl font-bold" id="btn-1">1</button>
+            <button onmousedown="handlePresetStart(2)" onmouseup="handlePresetEnd(2)" ontouchstart="handlePresetStart(2)" ontouchend="handlePresetEnd(2)" class="preset-btn h-16 rounded-xl text-2xl font-bold" id="btn-2">2</button>
+            <button onmousedown="handlePresetStart(3)" onmouseup="handlePresetEnd(3)" ontouchstart="handlePresetStart(3)" ontouchend="handlePresetEnd(3)" class="preset-btn h-16 rounded-xl text-2xl font-bold" id="btn-3">3</button>
+            <button onmousedown="handlePresetStart(4)" onmouseup="handlePresetEnd(4)" ontouchstart="handlePresetStart(4)" ontouchend="handlePresetEnd(4)" class="preset-btn h-16 rounded-xl text-2xl font-bold" id="btn-4">4</button>
+            <button onmousedown="handlePresetStart(5)" onmouseup="handlePresetEnd(5)" ontouchstart="handlePresetStart(5)" ontouchend="handlePresetEnd(5)" class="preset-btn h-16 rounded-xl text-2xl font-bold" id="btn-5">5</button>
+            <button onmousedown="handlePresetStart(6)" onmouseup="handlePresetEnd(6)" ontouchstart="handlePresetStart(6)" ontouchend="handlePresetEnd(6)" class="preset-btn h-16 rounded-xl text-2xl font-bold" id="btn-6">6</button>
         </div>
 
         <div class="h-28 flex gap-4 items-center">
@@ -72,6 +74,17 @@
         <div id="library-content" class="space-y-6"></div>
     </div>
 
+    <div id="overlay-logs" class="fixed inset-0 bg-black z-50 p-6 hidden flex flex-col">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-2xl font-bold">SYSTEM LOGS</h2>
+            <button onclick="toggleView('player')" class="text-3xl">✕</button>
+        </div>
+        <div id="log-content" class="flex-1 bg-zinc-900 border border-emerald-900 rounded p-4 font-mono text-xs overflow-y-auto text-emerald-600">
+            <div>Initializing system...</div>
+        </div>
+        <button onclick="document.getElementById('log-content').innerHTML=''" class="mt-4 border border-emerald-900 py-2 rounded">CLEAR LOGS</button>
+    </div>
+
     <audio id="audio-player" class="hidden"></audio>
 
 <script>
@@ -92,6 +105,16 @@
     const displayTitle = document.getElementById('display-title');
     const displaySubtitle = document.getElementById('display-subtitle');
 
+    // --- LOGGING ---
+    function appendLog(msg) {
+        const log = document.getElementById('log-content');
+        const entry = document.createElement('div');
+        entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+        log.appendChild(entry);
+        log.scrollTop = log.scrollHeight;
+        console.log(msg);
+    }
+
     // --- SERVER SYNC ---
     async function sync(method = 'GET', body = null) {
         try {
@@ -102,15 +125,17 @@
             }
             const res = await fetch(`${BOOKMARKS_ENDPOINT}?user=${encodeURIComponent(USER_ID)}`, options);
             return res.ok ? await res.json() : null;
-        } catch (e) { console.error("Sync Error:", e); return null; }
+        } catch (e) { appendLog("Sync Error: " + e.message); return null; }
     }
 
     async function loadData() {
+        appendLog("Fetching user data for: " + USER_ID);
         const data = await sync('GET');
         if (data) {
             state.presets = data.presets || {};
             state.radioStations = data.radioStations || [];
             state.playbackPositions = data.playbackPositions || {};
+            appendLog(`Loaded ${Object.keys(state.presets).length} presets`);
             renderLibrary();
         }
     }
@@ -130,25 +155,24 @@
         displayTitle.textContent = station.name.toUpperCase();
         displaySubtitle.textContent = "LIVE STREAM";
         document.getElementById('playback-info').style.opacity = "0.2";
-        audio.play();
+        audio.play().catch(e => appendLog("Playback Error: " + e.message));
         toggleView('player');
     }
 
     function playBook(bookName, trackIdx) {
         const track = state.books[bookName][trackIdx];
-        const trackKey = `server:${track.url}`;
-        state.currentSource = { type: 'book', data: { bookName, trackIdx, url: track.url, name: track.name } };
+        if (!track) return;
         
+        state.currentSource = { type: 'book', data: { bookName, trackIdx, url: track.url, name: track.name } };
         audio.src = track.url;
         displayTitle.textContent = track.name.toUpperCase();
         displaySubtitle.textContent = bookName.toUpperCase();
         document.getElementById('playback-info').style.opacity = "1";
         
-        // Restore position
-        const saved = state.playbackPositions[trackKey];
-        if (saved) audio.currentTime = saved;
+        const trackKey = `server:${track.url}`;
+        if (state.playbackPositions[trackKey]) audio.currentTime = state.playbackPositions[trackKey];
         
-        audio.play();
+        audio.play().catch(e => appendLog("Playback Error: " + e.message));
         toggleView('player');
     }
 
@@ -157,7 +181,7 @@
         document.getElementById('play-btn').textContent = audio.paused ? '▶' : '||';
     }
 
-    // --- PRESETS ---
+    // --- PRESETS (HOLD TO SAVE) ---
     function handlePresetStart(id) {
         state.isHolding = false;
         state.longPressTimer = setTimeout(() => {
@@ -167,42 +191,45 @@
                 const btn = document.getElementById(`btn-${id}`);
                 btn.classList.add('bg-emerald-400', 'text-black');
                 setTimeout(() => btn.classList.remove('bg-emerald-400', 'text-black'), 500);
+                appendLog(`Saved ${state.currentSource.type} to Preset ${id}`);
                 state.isHolding = true;
+            } else {
+                appendLog("Nothing playing to save!");
             }
         }, 1000);
     }
 
     function handlePresetEnd(id) {
         clearTimeout(state.longPressTimer);
-        if (!state.isHolding && state.presets[id]) {
-            const p = state.presets[id];
-            p.type === 'radio' ? playRadio(p.data) : playBook(p.data.bookName, p.data.trackIdx);
+        if (!state.isHolding) {
+            if (state.presets[id]) {
+                const p = state.presets[id];
+                appendLog(`Loading Preset ${id}: ${p.type}`);
+                p.type === 'radio' ? playRadio(p.data) : playBook(p.data.bookName, p.data.trackIdx);
+            } else {
+                appendLog(`Preset ${id} is empty`);
+            }
         }
     }
 
-    // --- LIBRARY & SCAN ---
-    function addRadioStation() {
-        const name = document.getElementById('radio-name').value;
-        const url = document.getElementById('radio-url').value;
-        if (name && url) {
-            state.radioStations.push({ name, url });
-            saveData();
-            renderLibrary();
-            document.getElementById('radio-name').value = '';
-            document.getElementById('radio-url').value = '';
-        }
-    }
-
+    // --- SCANNING AUDIOBOOKS ---
     async function scanServer() {
+        appendLog("Scanning /books directory...");
         try {
             const res = await fetch('./books/');
-            if (!res.ok) return;
+            if (!res.ok) {
+                appendLog("Error: Could not list /books directory.");
+                return;
+            }
             const text = await res.text();
             const parser = new DOMParser();
             const doc = parser.parseFromString(text, 'text/html');
+            // Look for links that don't start with / or ? and end with /
             const links = Array.from(doc.querySelectorAll('a'))
                 .map(a => a.getAttribute('href'))
-                .filter(h => h && h !== '../' && h.endsWith('/'));
+                .filter(h => h && !h.startsWith('?') && !h.startsWith('/') && h.endsWith('/'));
+
+            appendLog(`Found ${links.length} potential book folders.`);
 
             for (const link of links) {
                 const bookName = decodeURIComponent(link.replace(/\/$/, ''));
@@ -214,10 +241,13 @@
                     .filter(h => h.toLowerCase().endsWith('.mp3'))
                     .map(h => ({ name: decodeURIComponent(h), url: `./books/${link}${h}` }));
                 
-                if (tracks.length > 0) state.books[bookName] = tracks;
+                if (tracks.length > 0) {
+                    state.books[bookName] = tracks;
+                    appendLog(`Added book: ${bookName} (${tracks.length} tracks)`);
+                }
             }
             renderLibrary();
-        } catch (e) { console.error("Scan failed", e); }
+        } catch (e) { appendLog("Scan failed: " + e.message); }
     }
 
     function renderLibrary() {
@@ -247,7 +277,7 @@
             div.innerHTML = `<div class="font-bold mb-2">${bookName}</div>`;
             state.books[bookName].forEach((t, i) => {
                 const btn = document.createElement('button');
-                btn.className = "block w-full text-left text-xs py-1 opacity-70 hover:opacity-100";
+                btn.className = "block w-full text-left text-xs py-1 opacity-70 hover:opacity-100 truncate";
                 btn.textContent = t.name;
                 btn.onclick = () => playBook(bookName, i);
                 div.appendChild(btn);
@@ -256,16 +286,22 @@
         });
     }
 
-    // --- UI HELPERS ---
     function toggleView(view) {
         document.getElementById('overlay-library').classList.toggle('hidden', view !== 'library');
+        document.getElementById('overlay-logs').classList.toggle('hidden', view !== 'logs');
     }
 
-    function formatTime(s) {
-        if (isNaN(s)) return "00:00";
-        const m = Math.floor(s / 60);
-        const sec = Math.floor(s % 60);
-        return `${m.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`;
+    function addRadioStation() {
+        const name = document.getElementById('radio-name').value;
+        const url = document.getElementById('radio-url').value;
+        if (name && url) {
+            state.radioStations.push({ name, url });
+            saveData();
+            renderLibrary();
+            document.getElementById('radio-name').value = '';
+            document.getElementById('radio-url').value = '';
+            appendLog(`Added Radio: ${name}`);
+        }
     }
 
     audio.ontimeupdate = () => {
@@ -275,12 +311,18 @@
         document.getElementById('current-time').textContent = formatTime(audio.currentTime);
         document.getElementById('duration').textContent = formatTime(audio.duration);
         
-        // Save audiobook progress every 10 seconds
-        if (state.currentSource?.type === 'book' && Math.floor(audio.currentTime) % 10 === 0) {
+        if (state.currentSource?.type === 'book' && Math.floor(audio.currentTime) % 15 === 0) {
             state.playbackPositions[`server:${state.currentSource.data.url}`] = audio.currentTime;
             saveData();
         }
     };
+
+    function formatTime(s) {
+        if (isNaN(s)) return "00:00";
+        const m = Math.floor(s / 60);
+        const sec = Math.floor(s % 60);
+        return `${m.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`;
+    }
 
     document.getElementById('seek-bar').oninput = (e) => audio.currentTime = e.target.value;
 
