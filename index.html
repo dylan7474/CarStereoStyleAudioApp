@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CarStereo Infotainment v3.7</title>
+    <title>CarStereo Infotainment v3.8</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
@@ -23,8 +23,8 @@
 
     <header class="flex justify-between items-center mb-6">
         <div>
-            <h1 class="text-2xl font-bold tracking-tight">INFOTAINMENT <span class="text-emerald-500 font-light">3.7</span></h1>
-            <p class="text-[10px] uppercase tracking-[0.3em] opacity-40">Position Recovery Fix</p>
+            <h1 class="text-2xl font-bold tracking-tight">INFOTAINMENT <span class="text-emerald-500 font-light">3.8</span></h1>
+            <p class="text-[10px] uppercase tracking-[0.3em] opacity-40">Persistence & Seek Fix</p>
         </div>
         <div class="flex gap-3">
             <button onclick="toggleDayMode()" class="p-3 rounded-full bg-white/5 border border-white/10">☀️</button>
@@ -35,7 +35,7 @@
     <main id="view-player" class="flex-1 flex flex-col gap-6">
         <div class="flex-1 glass-card lcd-display flex flex-col justify-between relative overflow-hidden">
             <div class="p-8">
-                <div class="mb-2 text-[10px] font-bold tracking-widest text-emerald-500 uppercase" id="mode-indicator">Syncing Progress...</div>
+                <div class="mb-2 text-[10px] font-bold tracking-widest text-emerald-500 uppercase" id="mode-indicator">SYSTEM READY</div>
                 <h2 class="text-4xl sm:text-5xl font-bold mb-2 tracking-tight truncate" id="display-title">Ready</h2>
                 <p class="text-lg opacity-40 font-light truncate" id="display-subtitle">Select source</p>
             </div>
@@ -81,7 +81,7 @@
             </div>
             <div class="flex gap-4 h-24">
                 <button onclick="smartSeek(-15)" class="flex-1 glass-card bg-white/5 text-3xl active:scale-95 transition-transform">⏮</button>
-                <button onclick="togglePlay()" id="play-btn" class="w-1/3 glass-card bg-emerald-500 text-black text-4xl shadow-xl shadow-emerald-500/20 active:scale-95 transition-transform">▶</button>
+                <button onclick="togglePlay()" id="play-btn" class="w-1/3 glass-card bg-emerald-500 text-black text-4xl shadow-xl active:scale-95 transition-transform">▶</button>
                 <button onclick="smartSeek(30)" class="flex-1 glass-card bg-white/5 text-3xl active:scale-95 transition-transform">⏭</button>
             </div>
         </div>
@@ -90,7 +90,10 @@
     <div id="overlay-library" class="fixed inset-0 bg-[#0a0c10]/95 backdrop-blur-2xl z-50 p-6 hidden flex flex-col">
         <div class="flex justify-between items-center mb-8">
             <h2 class="text-3xl font-bold tracking-tight">Media Explorer</h2>
-            <button onclick="toggleView('player')" class="px-4 py-2 bg-red-500/20 text-red-500 rounded-xl font-bold">EXIT</button>
+            <div class="flex gap-2">
+                <button id="mgr-toggle" onclick="toggleManager()" class="px-4 py-2 border border-emerald-500/30 rounded-xl text-[11px] font-bold">MANAGE RADIO</button>
+                <button onclick="toggleView('player')" class="px-4 py-2 bg-red-500/20 text-red-500 rounded-xl font-bold">EXIT</button>
+            </div>
         </div>
         <input type="text" id="lib-search" oninput="renderLibrary()" placeholder="Search library..." class="w-full bg-white/5 border border-white/10 p-5 rounded-2xl mb-6 text-xl outline-none">
         <div id="library-content" class="flex-1 overflow-y-auto space-y-4 pr-2"></div>
@@ -101,21 +104,31 @@
 <script>
     const BOOKMARKS_ENDPOINT = './api/bookmarks';
     const USER_ID = new URLSearchParams(window.location.search).get('user') || 'default_stereo';
-    let state = { presets: {}, radioStations: [], books: {}, currentSource: null, playbackPositions: {}, longPressTimer: null, isHolding: false };
-    let pendingResumeTime = 0; // v3.7 Track intended jump position
+    let state = { presets: {}, radioStations: [], books: {}, currentSource: null, playbackPositions: {}, longPressTimer: null, isHolding: false, isManagerMode: false };
+    let pendingResumeTime = 0;
+    let isDragging = false; // v3.8 Flag to prevent seek-back during interaction
 
     const audio = document.getElementById('audio-player');
+    const seekBar = document.getElementById('seek-bar');
 
     audio.addEventListener('play', () => { document.getElementById('play-btn').textContent = '||'; });
     audio.addEventListener('pause', () => { document.getElementById('play-btn').textContent = '▶'; });
 
-    // v3.7 Robust Position Recovery
+    // v3.8 Robust position restoration on load
     audio.addEventListener('canplay', () => {
         if (pendingResumeTime > 0) {
             audio.currentTime = pendingResumeTime;
-            console.log(`Resumed at: ${pendingResumeTime}s`);
-            pendingResumeTime = 0; // Clear after use
+            pendingResumeTime = 0;
         }
+    });
+
+    // v3.8 Seek bar drag handling
+    seekBar.addEventListener('mousedown', () => isDragging = true);
+    seekBar.addEventListener('touchstart', () => isDragging = true);
+    seekBar.addEventListener('change', (e) => {
+        audio.currentTime = e.target.value;
+        isDragging = false;
+        savePosition(); // Force save immediately on manual seek
     });
 
     async function sync(method = 'GET', body = null) {
@@ -130,38 +143,50 @@
     function playBook(bookName, trackIdx) {
         const track = state.books[bookName][trackIdx];
         state.currentSource = { type: 'book', data: { bookName, trackIdx, url: track.url, name: track.name } };
-        
         const trackKey = `server:${track.url}`;
-        pendingResumeTime = state.playbackPositions[trackKey] || 0; // Set intended jump before changing src
-        
+        pendingResumeTime = state.playbackPositions[trackKey] || 0;
         audio.src = track.url;
         document.getElementById('display-title').textContent = track.name.toUpperCase();
         document.getElementById('display-subtitle').textContent = (bookName === track.name) ? "SINGLE FILE" : bookName.toUpperCase();
-        
-        audio.play().catch(e => console.log("Auto-play blocked, waiting for user interaction."));
-        toggleView('player');
+        audio.play(); toggleView('player');
     }
 
     function playRadio(station) {
-        pendingResumeTime = 0; // Live radio doesn't resume
+        pendingResumeTime = 0;
         state.currentSource = { type: 'radio', data: station };
         audio.src = station.url;
         document.getElementById('display-title').textContent = station.name.toUpperCase();
         document.getElementById('display-subtitle').textContent = "LIVE RADIO";
-        audio.play().catch(e => console.log("Stream blocked."));
-        toggleView('player');
+        audio.play(); toggleView('player');
     }
 
-    // --- REMAINING PRESET & SYNC LOGIC ---
+    function savePosition() {
+        if (state.currentSource?.type === 'book' && audio.currentTime > 1) {
+            state.playbackPositions[`server:${state.currentSource.data.url}`] = audio.currentTime;
+            sync('POST', state);
+        }
+    }
+
+    audio.ontimeupdate = () => {
+        if (!isDragging) {
+            seekBar.value = audio.currentTime;
+            seekBar.max = audio.duration || 0;
+            document.getElementById('current-time').textContent = formatTime(audio.currentTime);
+            document.getElementById('duration').textContent = formatTime(audio.duration);
+            // Save heartbeat every 10s
+            if (Math.floor(audio.currentTime) % 10 === 0) savePosition();
+        }
+    };
+
+    // Standard Handlers
     function handlePresetStart(id) {
         state.isHolding = false;
         state.longPressTimer = setTimeout(() => {
             if (state.currentSource) {
                 state.presets[id] = state.currentSource;
                 sync('POST', state);
-                const btn = document.getElementById(`btn-${id}`);
-                btn.classList.add('bg-emerald-500', 'text-black');
-                setTimeout(() => btn.classList.remove('bg-emerald-500', 'text-black'), 500);
+                document.getElementById(`btn-${id}`).classList.add('bg-emerald-500', 'text-black');
+                setTimeout(() => document.getElementById(`btn-${id}`).classList.remove('bg-emerald-500', 'text-black'), 500);
                 updatePresetLabels();
                 state.isHolding = true;
             }
@@ -176,12 +201,20 @@
         }
     }
 
+    function updatePresetLabels() {
+        for (let i = 1; i <= 6; i++) {
+            const label = document.getElementById(`label-${i}`);
+            const p = state.presets[i];
+            label.textContent = p ? (p.type === 'radio' ? p.data.name : (p.data.name || p.data.bookName)) : "";
+        }
+    }
+
     function renderLibrary() {
         const query = document.getElementById('lib-search').value.toLowerCase();
         const container = document.getElementById('library-content');
         container.innerHTML = '';
         state.radioStations.filter(s => s.name.toLowerCase().includes(query)).forEach((s, idx) => {
-            container.appendChild(createLibEntry(s.name, () => playRadio(s), 'radio', s));
+            container.appendChild(createLibEntry(s.name, () => playRadio(s), 'radio', s, idx));
         });
         Object.keys(state.books).forEach(bookName => {
             state.books[bookName].filter(t => t.name.toLowerCase().includes(query) || bookName.toLowerCase().includes(query)).forEach((t, i) => {
@@ -191,7 +224,7 @@
         });
     }
 
-    function createLibEntry(label, tuneFn, type, data) {
+    function createLibEntry(label, tuneFn, type, data, idx = null) {
         const div = document.createElement('div');
         div.className = "glass-card p-6 flex flex-col gap-4";
         const pButtons = [1,2,3,4,5,6].map(p => {
@@ -213,31 +246,13 @@
         return div;
     }
 
-    function updatePresetLabels() {
-        for (let i = 1; i <= 6; i++) {
-            const label = document.getElementById(`label-${i}`);
-            const p = state.presets[i];
-            label.textContent = p ? (p.type === 'radio' ? p.data.name : (p.data.name || p.data.bookName)) : "";
-        }
-    }
-
-    audio.ontimeupdate = () => {
-        const bar = document.getElementById('seek-bar');
-        bar.value = audio.currentTime; bar.max = audio.duration || 0;
-        document.getElementById('current-time').textContent = formatTime(audio.currentTime);
-        document.getElementById('duration').textContent = formatTime(audio.duration);
-        // v3.7: Only save if playing a book and at least 3 seconds in (avoids wiping data with 0 on start)
-        if (state.currentSource?.type === 'book' && Math.floor(audio.currentTime) % 10 === 0 && audio.currentTime > 3) {
-            state.playbackPositions[`server:${state.currentSource.data.url}`] = audio.currentTime;
-            sync('POST', state);
-        }
-    };
-
     function formatTime(s) { if(isNaN(s)) return "00:00"; const m=Math.floor(s/60); const sec=Math.floor(s%60); return `${m.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`; }
     function togglePlay() { audio.paused ? audio.play() : audio.pause(); }
     function toggleDayMode() { document.body.classList.toggle('day-mode'); }
     function toggleView(v) { document.getElementById('overlay-library').classList.toggle('hidden', v !== 'library'); }
-    function smartSeek(s) { if (!audio.src || isNaN(audio.duration)) return; audio.currentTime = Math.max(0, Math.min(audio.currentTime + s, audio.duration)); }
+    function toggleManager() { state.isManagerMode = !state.isManagerMode; renderLibrary(); }
+    function smartSeek(s) { if (!audio.src || isNaN(audio.duration)) return; audio.currentTime = Math.max(0, Math.min(audio.currentTime + s, audio.duration)); savePosition(); }
+    document.getElementById('vol-control').oninput = (e) => audio.volume = e.target.value;
 
     async function init() {
         const data = await sync('GET');
