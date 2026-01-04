@@ -6,6 +6,7 @@
     <title>CarStereo Infotainment v4.3</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.cdnfonts.com/css/dseg7-classic" rel="stylesheet">
     <style>
         :root { 
             --bg: #0a0c10; --text: #e2e8f0; --accent: #10b981; 
@@ -22,8 +23,10 @@
         .glass-card { background: var(--panel); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1); border-radius: 2rem; }
         .lcd-display { background: linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, rgba(0,0,0,0) 100%); }
         .preset-btn { background: var(--glass); border: 1px solid rgba(255,255,255,0.05); transition: all 0.3s ease; border-radius: 1.25rem; }
+        .preset-active { background: var(--accent) !important; color: white !important; box-shadow: 0 0 15px var(--accent); border-color: transparent; }
         .lib-p-active { background: var(--accent) !important; color: white !important; box-shadow: 0 0 15px var(--accent); border-color: transparent; }
         .preset-label { font-size: 0.65rem; font-weight: 600; text-transform: uppercase; opacity: 0.7; }
+        .time-display { font-family: 'DSEG7 Classic', 'Inter', sans-serif; letter-spacing: 0.12em; }
         
         input[type=range].seek-bar { 
             width: 100%; height: 12px; border-radius: 0; background: rgba(255,255,255,0.1); 
@@ -60,10 +63,8 @@
             <div class="p-4 sm:p-8">
                 <div class="flex items-center justify-between mb-2">
                     <div class="text-[10px] font-bold tracking-widest text-emerald-500 uppercase" id="mode-indicator">Connected</div>
-                    <div class="text-[10px] font-bold tracking-widest text-emerald-500 uppercase sm:hidden" id="current-time-mobile">00:00</div>
                 </div>
-                <h2 class="text-3xl sm:text-5xl font-bold mb-2 tracking-tight truncate" id="display-title">Ready</h2>
-                <p class="text-xs sm:text-sm font-semibold tracking-[0.3em] opacity-60 truncate" id="display-subtitle">STANDBY</p>
+                <h2 class="time-display text-4xl sm:text-6xl font-bold mb-2 tracking-tight truncate" id="display-title">00:00</h2>
             </div>
             
             <div class="w-full">
@@ -155,7 +156,7 @@
     const defaultModeText = modeIndicator.textContent;
     const sleepDisplay = document.getElementById('sleep-timer-display');
     const defaultSleepText = sleepDisplay.textContent;
-    const currentTimeMobile = document.getElementById('current-time-mobile');
+    const timeDisplay = document.getElementById('display-title');
     function showModeMessage(message, timeout = 3000) {
         if (sleepEndTime) return;
         modeIndicator.textContent = message;
@@ -249,18 +250,16 @@
         const trackKey = `server:${track.url}`;
         pendingResumeTime = state.playbackPositions[trackKey] || 0;
         audio.src = track.url;
-        document.getElementById('display-title').textContent = track.name.toUpperCase();
-        document.getElementById('display-subtitle').textContent = (bookName === track.name) ? "SINGLE FILE" : bookName.toUpperCase();
         audio.play(); toggleView('player');
+        updateActivePresetButtons();
     }
 
     function playRadio(station) {
         pendingResumeTime = 0;
         state.currentSource = { type: 'radio', data: station };
         audio.src = station.url;
-        document.getElementById('display-title').textContent = station.name.toUpperCase();
-        document.getElementById('display-subtitle').textContent = "LIVE RADIO";
         audio.play(); toggleView('player');
+        updateActivePresetButtons();
     }
 
     function handlePresetStart(id) {
@@ -295,6 +294,17 @@
             const label = document.getElementById(`label-${i}`);
             const p = state.presets[i];
             label.textContent = p ? (p.type === 'radio' ? p.data.name : (p.data.name || p.data.bookName)) : "";
+        }
+        updateActivePresetButtons();
+    }
+
+    function updateActivePresetButtons() {
+        const activeUrl = state.currentSource?.data?.url;
+        for (let i = 1; i <= 6; i++) {
+            const btn = document.getElementById(`btn-${i}`);
+            const preset = state.presets[i];
+            const isActive = preset?.data?.url && activeUrl && preset.data.url === activeUrl;
+            btn.classList.toggle('preset-active', Boolean(isActive));
         }
     }
 
@@ -402,7 +412,7 @@
     function updateCurrentTimeDisplay(value) {
         const timeText = formatTime(value);
         document.getElementById('current-time').textContent = timeText;
-        if (currentTimeMobile) currentTimeMobile.textContent = timeText;
+        if (timeDisplay) timeDisplay.textContent = timeText;
     }
 
     function formatTime(s) { if(isNaN(s)) return "00:00"; const m=Math.floor(s/60); const sec=Math.floor(s%60); return `${m.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`; }
