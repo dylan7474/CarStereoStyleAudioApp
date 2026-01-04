@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# --- Configuration (Adjusted for Laptop/Home Directory) ---
+# --- Configuration ---
 PORT_ARG=${1:-3005}
 REPO_URL="https://github.com/dylan7474/CarStereoStyleAudioApp.git"
 TARGET_DIR="$HOME/carstereo/src"
@@ -12,19 +12,15 @@ SERVICE_GID=1002
 echo "=== Deploying CarStereo AudioPlayer (Laptop Mode) ==="
 
 # 1. Environment Setup
-# Ensure directories exist and have proper permissions for the Docker user (1002)
 mkdir -p "$BOOKS_DIR"
 mkdir -p "$DATA_DIR"
 mkdir -p "$(dirname "$TARGET_DIR")"
-
-# Remove old source to ensure a fresh pull
 [ -d "$TARGET_DIR" ] && rm -rf "$TARGET_DIR"
 
 git clone "$REPO_URL" "$TARGET_DIR"
 cd "$TARGET_DIR"
 
-# 2. Generate robust server.js with Range Request & Custom Data support
-# This handles the specific 'presets' and 'radioStations' keys used by the Car Stereo app
+# 2. Generate robust server.js
 cat <<EOF > server.js
 const http = require('http');
 const fs = require('fs');
@@ -52,7 +48,7 @@ const ensureDataFile = () => {
 
 const loadBookmarks = () => {
     try { ensureDataFile(); return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8') || '{}'); }
-    catch (err) { console.error('Load error:', err); return {}; }
+    catch (err) { return {}; }
 };
 
 const saveBookmarks = (data) => {
@@ -99,8 +95,7 @@ const handleApiBookmarks = (req, res, url) => {
 
 const serveStatic = (req, res, url) => {
     const pathname = decodeURIComponent(url.pathname === '/' ? '/index.html' : url.pathname);
-    const normalizedPath = path.normalize(pathname).replace(/^(\.\.[\/\\\\])+/, '');
-    const filePath = path.join(STATIC_ROOT, normalizedPath);
+    const filePath = path.join(STATIC_ROOT, path.normalize(pathname).replace(/^(\.\.[\/\\\\])+/, ''));
 
     fs.stat(filePath, (err, stats) => {
         if (err) { res.writeHead(404); return res.end(); }
@@ -148,10 +143,22 @@ http.createServer((req, res) => {
 }).listen(PORT);
 EOF
 
-# 3. Build & Launch
-# Prepare the local data directory for the container's internal user
-sudo chown -R $SERVICE_UID:$SERVICE_GID "$DATA_DIR"
+# 3. Create Dockerfile (CRITICAL: Must exist before docker build)
+cat <<EOF > Dockerfile
+FROM node:20-slim
+WORKDIR /app
+COPY server.js index.html ./
+RUN mkdir books data && chown -R $SERVICE_UID:$SERVICE_GID /app
+USER $SERVICE_UID
+EXPOSE $PORT_ARG
+ENV PORT=$PORT_ARG
+ENV DATA_DIR=/app/data
+ENV STATIC_ROOT=/app
+CMD ["node", "server.js"]
+EOF
 
+# 4. Build & Launch
+sudo chown -R $SERVICE_UID:$SERVICE_GID "$DATA_DIR"
 docker build -t carstereo-player .
 docker stop carstereo-player 2>/dev/null || true
 docker rm carstereo-player 2>/dev/null || true
@@ -164,10 +171,9 @@ docker run -d \
 --restart unless-stopped \
 carstereo-player
 
-# Improved IP detection for local laptops (Linux)
-IP_ADDR=$(hostname -I | awk '{print $1}')
-[ -z "$IP_ADDR" ] && IP_ADDR="localhost"
+# Robust IP detection for laptops
+IP_ADDR=$(python3 -c "import socket; s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM); s.connect(('8.8.8.8', 80)); print(s.getsockname()[0]); s.close()" 2>/dev/null || echo "localhost")
 
 echo "========================================="
-echo "Deployed at http://\${IP_ADDR}:\$PORT_ARG"
+echo "Deployed at http://${IP_ADDR}:${PORT_ARG}"
 echo "========================================="
