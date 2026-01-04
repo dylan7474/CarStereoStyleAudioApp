@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CarStereo Infotainment v3.1</title>
+    <title>CarStereo Infotainment v3.2</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
@@ -31,12 +31,18 @@
         .lib-p-active { background: var(--accent) !important; color: white !important; box-shadow: 0 0 15px var(--accent); }
         .preset-label { font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.7; }
         
-        /* Full Width Seek Bar Styling */
-        input[type=range] { width: 100%; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.1); appearance: none; outline: none; }
-        input[type=range]::-webkit-slider-thumb {
-            appearance: none; width: 20px; height: 20px; 
+        /* Fixed Full Width Seek Bar Styling */
+        input[type=range]#seek-bar { 
+            width: 100%; height: 8px; border-radius: 0; background: rgba(255,255,255,0.1); 
+            appearance: none; outline: none; margin: 0; 
+        }
+        input[type=range]#seek-bar::-webkit-slider-thumb {
+            appearance: none; width: 22px; height: 22px; 
             background: var(--accent); border-radius: 50%; cursor: pointer;
-            box-shadow: 0 0 15px var(--accent);
+            box-shadow: 0 0 15px var(--accent); border: 2px solid white;
+        }
+        input[type=range]#vol-control {
+            width: 100%; height: 6px; border-radius: 3px; appearance: none; background: rgba(255,255,255,0.1);
         }
     </style>
 </head>
@@ -44,7 +50,7 @@
 
     <header class="flex justify-between items-center mb-6">
         <div>
-            <h1 class="text-2xl font-bold tracking-tight">INFOTAINMENT <span class="text-emerald-500 font-light">3.1</span></h1>
+            <h1 class="text-2xl font-bold tracking-tight">INFOTAINMENT <span class="text-emerald-500 font-light">3.2</span></h1>
             <p class="text-[10px] uppercase tracking-[0.3em] opacity-40">Connected Audio System</p>
         </div>
         <div class="flex gap-3">
@@ -61,12 +67,12 @@
                 <p class="text-lg opacity-40 font-light truncate" id="display-subtitle">Select source</p>
             </div>
             
-            <div class="w-full px-0">
+            <div class="w-full">
                 <div class="flex justify-between px-8 text-[11px] mb-2 font-semibold opacity-60">
                     <span id="current-time">00:00</span>
                     <span id="duration">00:00</span>
                 </div>
-                <input type="range" id="seek-bar" value="0" step="1" class="rounded-none">
+                <input type="range" id="seek-bar" value="0" step="1">
             </div>
         </div>
 
@@ -77,11 +83,30 @@
             </div>
 
             <div class="grid grid-cols-3 sm:grid-cols-6 gap-3">
-                ${[1,2,3,4,5,6].map(i => `
-                <button onmousedown="handlePresetStart(${i})" onmouseup="handlePresetEnd(${i})" class="preset-btn h-20 flex flex-col items-center justify-center gap-1" id="btn-${i}">
-                    <span class="text-xl font-bold">${i}</span>
-                    <span class="preset-label truncate w-full px-2" id="label-${i}"></span>
-                </button>`).join('')}
+                <button onmousedown="handlePresetStart(1)" onmouseup="handlePresetEnd(1)" class="preset-btn h-20 flex flex-col items-center justify-center gap-1" id="btn-1">
+                    <span class="text-xl font-bold">1</span>
+                    <span class="preset-label truncate w-full px-2" id="label-1"></span>
+                </button>
+                <button onmousedown="handlePresetStart(2)" onmouseup="handlePresetEnd(2)" class="preset-btn h-20 flex flex-col items-center justify-center gap-1" id="btn-2">
+                    <span class="text-xl font-bold">2</span>
+                    <span class="preset-label truncate w-full px-2" id="label-2"></span>
+                </button>
+                <button onmousedown="handlePresetStart(3)" onmouseup="handlePresetEnd(3)" class="preset-btn h-20 flex flex-col items-center justify-center gap-1" id="btn-3">
+                    <span class="text-xl font-bold">3</span>
+                    <span class="preset-label truncate w-full px-2" id="label-3"></span>
+                </button>
+                <button onmousedown="handlePresetStart(4)" onmouseup="handlePresetEnd(4)" class="preset-btn h-20 flex flex-col items-center justify-center gap-1" id="btn-4">
+                    <span class="text-xl font-bold">4</span>
+                    <span class="preset-label truncate w-full px-2" id="label-4"></span>
+                </button>
+                <button onmousedown="handlePresetStart(5)" onmouseup="handlePresetEnd(5)" class="preset-btn h-20 flex flex-col items-center justify-center gap-1" id="btn-5">
+                    <span class="text-xl font-bold">5</span>
+                    <span class="preset-label truncate w-full px-2" id="label-5"></span>
+                </button>
+                <button onmousedown="handlePresetStart(6)" onmouseup="handlePresetEnd(6)" class="preset-btn h-20 flex flex-col items-center justify-center gap-1" id="btn-6">
+                    <span class="text-xl font-bold">6</span>
+                    <span class="preset-label truncate w-full px-2" id="label-6"></span>
+                </button>
             </div>
 
             <div class="flex gap-4 h-24">
@@ -109,21 +134,13 @@
     let state = { presets: {}, radioStations: [], books: {}, currentSource: null, playbackPositions: {}, longPressTimer: null, isHolding: false };
     const audio = document.getElementById('audio-player');
 
-    // --- SMART SEEK LOGIC ---
     function smartSeek(seconds) {
         if (!audio.src || isNaN(audio.duration)) return;
-        
-        // If rewinding near the start, go to previous track
         if (seconds < 0 && audio.currentTime < 5) {
             prevTrack();
             return;
         }
-
-        const newTime = audio.currentTime + seconds;
-        audio.currentTime = Math.max(0, Math.min(newTime, audio.duration));
-        
-        const direction = seconds > 0 ? "FFWD" : "RWD";
-        console.log(`${direction}: ${Math.abs(seconds)}s`);
+        audio.currentTime = Math.max(0, Math.min(audio.currentTime + seconds, audio.duration));
     }
 
     function prevTrack() {
@@ -142,26 +159,12 @@
         }
     }
 
-    // --- CORE LOGIC (V3.0 baseline with V3.1 label fix) ---
-    function updatePresetLabels() {
-        for (let i = 1; i <= 6; i++) {
-            const label = document.getElementById(`label-${i}`);
-            const p = state.presets[i];
-            if (p) {
-                label.textContent = p.type === 'radio' ? p.data.name : (p.data.name || p.data.bookName);
-            } else {
-                label.textContent = "";
-            }
-        }
-    }
-
     function playBook(bookName, trackIdx) {
         const track = state.books[bookName][trackIdx];
         state.currentSource = { type: 'book', data: { bookName, trackIdx, url: track.url, name: track.name } };
         audio.src = track.url;
         document.getElementById('display-title').textContent = track.name.toUpperCase();
         document.getElementById('display-subtitle').textContent = (bookName === track.name) ? "SINGLE FILE" : bookName.toUpperCase();
-        document.getElementById('playback-info').style.opacity = "1";
         const trackKey = `server:${track.url}`;
         if (state.playbackPositions[trackKey]) audio.currentTime = state.playbackPositions[trackKey];
         audio.play(); toggleView('player');
@@ -172,16 +175,87 @@
         audio.src = station.url;
         document.getElementById('display-title').textContent = station.name.toUpperCase();
         document.getElementById('display-subtitle').textContent = "LIVE RADIO";
-        document.getElementById('playback-info').style.opacity = "0.2";
         audio.play(); toggleView('player');
     }
 
-    // Standard Handlers
+    function handlePresetStart(id) {
+        state.isHolding = false;
+        state.longPressTimer = setTimeout(() => {
+            if (state.currentSource) {
+                state.presets[id] = state.currentSource;
+                sync('POST', state);
+                const btn = document.getElementById(`btn-${id}`);
+                btn.classList.add('bg-emerald-500', 'text-black');
+                setTimeout(() => btn.classList.remove('bg-emerald-500', 'text-black'), 500);
+                updatePresetLabels();
+                state.isHolding = true;
+            }
+        }, 1000);
+    }
+
+    function handlePresetEnd(id) {
+        clearTimeout(state.longPressTimer);
+        if (!state.isHolding && state.presets[id]) {
+            const p = state.presets[id];
+            p.type === 'radio' ? playRadio(p.data) : playBook(p.data.bookName, p.data.trackIdx);
+        }
+    }
+
+    function updatePresetLabels() {
+        for (let i = 1; i <= 6; i++) {
+            const label = document.getElementById(`label-${i}`);
+            const p = state.presets[i];
+            label.textContent = p ? (p.type === 'radio' ? p.data.name : (p.data.name || p.data.bookName)) : "";
+        }
+    }
+
+    function renderLibrary() {
+        const query = document.getElementById('lib-search').value.toLowerCase();
+        const container = document.getElementById('library-content');
+        container.innerHTML = '';
+        state.radioStations.filter(s => s.name.toLowerCase().includes(query)).forEach((s, idx) => {
+            container.appendChild(createLibEntry(s.name, () => playRadio(s), 'radio', s));
+        });
+        Object.keys(state.books).forEach(bookName => {
+            state.books[bookName].filter(t => t.name.toLowerCase().includes(query) || bookName.toLowerCase().includes(query)).forEach((t, i) => {
+                const bookData = { bookName, trackIdx: i, url: t.url, name: t.name };
+                const label = (bookName === t.name) ? t.name : `${bookName} - ${t.name}`;
+                container.appendChild(createLibEntry(label, () => playBook(bookName, i), 'book', bookData));
+            });
+        });
+    }
+
+    function createLibEntry(label, tuneFn, type, data) {
+        const div = document.createElement('div');
+        div.className = "glass-card p-6 flex flex-col gap-4";
+        const pButtons = [1,2,3,4,5,6].map(p => {
+            const activePreset = state.presets[p];
+            const isActive = activePreset && activePreset.type === type && activePreset.data.url === data.url;
+            return `<button onclick="this.assign(${p})" class="w-10 h-10 rounded-lg text-[10px] font-black ${isActive ? 'lib-p-active' : 'bg-white/5'}">P${p}</button>`;
+        }).join('');
+        div.innerHTML = `
+            <div class="font-bold truncate text-lg tracking-tight">${label}</div>
+            <div class="flex items-center gap-3">
+                <button class="flex-1 bg-emerald-500 text-black py-3 rounded-xl font-bold text-xs" onclick="this.tune()">TUNE</button>
+                <div class="flex gap-1">${pButtons}</div>
+            </div>`;
+        div.querySelector('button.bg-emerald-500').tune = tuneFn;
+        div.querySelectorAll('button[onclick^="this.assign"]').forEach(b => {
+            const p = b.getAttribute('onclick').match(/\d+/)[0];
+            b.onclick = () => {
+                state.presets[p] = { type, data };
+                sync('POST', state);
+                updatePresetLabels();
+                renderLibrary();
+            };
+        });
+        return div;
+    }
+
     function togglePlay() { audio.paused ? audio.play() : audio.pause(); }
     function toggleDayMode() { document.body.classList.toggle('day-mode'); }
     function toggleView(v) { document.getElementById('overlay-library').classList.toggle('hidden', v !== 'library'); }
     
-    // Server Sync
     async function sync(method = 'GET', body = null) {
         try {
             const options = { method };
@@ -206,11 +280,9 @@
     document.getElementById('vol-control').oninput = (e) => audio.volume = e.target.value;
     document.getElementById('seek-bar').oninput = (e) => audio.currentTime = e.target.value;
 
-    // Initialize
     async function init() {
         const data = await sync('GET');
         if (data) { Object.assign(state, data); }
-        // Fetch books folder logic from v2.8/v3.0 remains same
         const res = await fetch('./books/');
         if (res.ok) {
             const text = await res.text();
