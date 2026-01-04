@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CarStereo AudioPlayer</title>
+    <title>CarStereo AudioPlayer v2.2</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background-color: #050505; color: #10b981; font-family: 'Courier New', Courier, monospace; }
@@ -18,7 +18,7 @@
 <body class="h-screen flex flex-col overflow-hidden">
 
     <header class="p-4 flex justify-between items-center border-b border-emerald-900/30">
-        <h1 class="text-xl font-bold tracking-tighter lcd-glow">CAR UNIT v2.1</h1>
+        <h1 class="text-xl font-bold tracking-tighter lcd-glow">CAR UNIT v2.2</h1>
         <div class="flex gap-4 text-xs">
             <button onclick="toggleView('library')" class="uppercase border border-emerald-900 px-3 py-1 rounded">Library</button>
             <button onclick="toggleView('logs')" class="uppercase border border-emerald-900 px-3 py-1 rounded">Logs</button>
@@ -61,8 +61,8 @@
             <h2 class="text-2xl font-bold">SOURCES</h2>
             <button onclick="toggleView('player')" class="text-3xl">✕</button>
         </div>
-        
-        <div class="mb-6 p-4 border border-emerald-900 rounded-xl bg-zinc-900/50">
+        <div id="library-content" class="space-y-6"></div>
+        <div class="mt-8 p-4 border border-emerald-900 rounded-xl bg-zinc-900/50">
             <h3 class="text-sm uppercase mb-3 opacity-50">Add Radio Stream</h3>
             <div class="flex flex-col gap-2">
                 <input type="text" id="radio-name" placeholder="Station Name" class="bg-black border border-emerald-900 p-2 rounded text-emerald-400">
@@ -70,19 +70,14 @@
                 <button onclick="addRadioStation()" class="bg-emerald-700 text-black font-bold p-2 rounded">ADD STATION</button>
             </div>
         </div>
-
-        <div id="library-content" class="space-y-6"></div>
     </div>
 
     <div id="overlay-logs" class="fixed inset-0 bg-black z-50 p-6 hidden flex flex-col">
         <div class="flex justify-between items-center mb-4">
-            <h2 class="text-2xl font-bold">SYSTEM LOGS</h2>
+            <h2 class="text-2xl font-bold">LOGS v2.2</h2>
             <button onclick="toggleView('player')" class="text-3xl">✕</button>
         </div>
-        <div id="log-content" class="flex-1 bg-zinc-900 border border-emerald-900 rounded p-4 font-mono text-xs overflow-y-auto text-emerald-600">
-            <div>Initializing system...</div>
-        </div>
-        <button onclick="document.getElementById('log-content').innerHTML=''" class="mt-4 border border-emerald-900 py-2 rounded">CLEAR LOGS</button>
+        <div id="log-content" class="flex-1 bg-zinc-900 border border-emerald-900 rounded p-4 font-mono text-xs overflow-y-auto text-emerald-600"></div>
     </div>
 
     <audio id="audio-player" class="hidden"></audio>
@@ -90,194 +85,118 @@
 <script>
     const BOOKMARKS_ENDPOINT = './api/bookmarks';
     const USER_ID = new URLSearchParams(window.location.search).get('user') || 'default_stereo';
-
-    let state = {
-        presets: {},
-        radioStations: [],
-        books: {},
-        currentSource: null,
-        playbackPositions: {},
-        longPressTimer: null,
-        isHolding: false
-    };
-
+    let state = { presets: {}, radioStations: [], books: {}, currentSource: null, playbackPositions: {}, longPressTimer: null, isHolding: false };
     const audio = document.getElementById('audio-player');
-    const displayTitle = document.getElementById('display-title');
-    const displaySubtitle = document.getElementById('display-subtitle');
 
-    // --- LOGGING ---
     function appendLog(msg) {
         const log = document.getElementById('log-content');
         const entry = document.createElement('div');
         entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
         log.appendChild(entry);
         log.scrollTop = log.scrollHeight;
-        console.log(msg);
     }
 
-    // --- SERVER SYNC ---
     async function sync(method = 'GET', body = null) {
         try {
             const options = { method };
-            if (body) {
-                options.headers = { 'Content-Type': 'application/json' };
-                options.body = JSON.stringify(body);
-            }
+            if (body) { options.headers = { 'Content-Type': 'application/json' }; options.body = JSON.stringify(body); }
             const res = await fetch(`${BOOKMARKS_ENDPOINT}?user=${encodeURIComponent(USER_ID)}`, options);
             return res.ok ? await res.json() : null;
         } catch (e) { appendLog("Sync Error: " + e.message); return null; }
     }
 
-    async function loadData() {
-        appendLog("Fetching user data for: " + USER_ID);
-        const data = await sync('GET');
-        if (data) {
-            state.presets = data.presets || {};
-            state.radioStations = data.radioStations || [];
-            state.playbackPositions = data.playbackPositions || {};
-            appendLog(`Loaded ${Object.keys(state.presets).length} presets`);
+    async function scanServer() {
+        appendLog("Scanning v2.2: Fetching /books root...");
+        try {
+            const res = await fetch('./books/');
+            if (!res.ok) return appendLog("Error: /books not found.");
+            const text = await res.text();
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(text, 'text/html');
+            const links = Array.from(doc.querySelectorAll('a')).map(a => a.getAttribute('href')).filter(h => h && !h.startsWith('?') && !h.startsWith('/'));
+
+            state.books = { "Library": [] };
+            for (const link of links) {
+                if (link.endsWith('/')) {
+                    const bookName = decodeURIComponent(link.replace(/\/$/, ''));
+                    const trackRes = await fetch(`./books/${link}`);
+                    const trackText = await trackRes.text();
+                    const tracks = Array.from(parser.parseFromString(trackText, 'text/html').querySelectorAll('a'))
+                        .map(a => a.getAttribute('href'))
+                        .filter(h => h.toLowerCase().endsWith('.mp3'))
+                        .map(h => ({ name: decodeURIComponent(h), url: `./books/${link}${h}` }));
+                    if (tracks.length > 0) state.books[bookName] = tracks;
+                } else if (link.toLowerCase().endsWith('.mp3')) {
+                    state.books["Library"].push({ name: decodeURIComponent(link), url: `./books/${link}` });
+                }
+            }
+            if (state.books["Library"].length === 0) delete state.books["Library"];
+            appendLog(`Scan Complete. Found ${Object.keys(state.books).length} categories.`);
             renderLibrary();
-        }
+        } catch (e) { appendLog("Scan failed: " + e.message); }
     }
 
-    async function saveData() {
-        await sync('POST', {
-            presets: state.presets,
-            radioStations: state.radioStations,
-            playbackPositions: state.playbackPositions
-        });
-    }
-
-    // --- PLAYBACK ---
     function playRadio(station) {
         state.currentSource = { type: 'radio', data: station };
         audio.src = station.url;
-        displayTitle.textContent = station.name.toUpperCase();
-        displaySubtitle.textContent = "LIVE STREAM";
+        document.getElementById('display-title').textContent = station.name.toUpperCase();
+        document.getElementById('display-subtitle').textContent = "RADIO";
         document.getElementById('playback-info').style.opacity = "0.2";
-        audio.play().catch(e => appendLog("Playback Error: " + e.message));
+        audio.play().catch(e => appendLog("Stream Error: " + e.message));
         toggleView('player');
     }
 
     function playBook(bookName, trackIdx) {
         const track = state.books[bookName][trackIdx];
-        if (!track) return;
-        
         state.currentSource = { type: 'book', data: { bookName, trackIdx, url: track.url, name: track.name } };
         audio.src = track.url;
-        displayTitle.textContent = track.name.toUpperCase();
-        displaySubtitle.textContent = bookName.toUpperCase();
+        document.getElementById('display-title').textContent = track.name.toUpperCase();
+        document.getElementById('display-subtitle').textContent = bookName.toUpperCase();
         document.getElementById('playback-info').style.opacity = "1";
-        
         const trackKey = `server:${track.url}`;
         if (state.playbackPositions[trackKey]) audio.currentTime = state.playbackPositions[trackKey];
-        
-        audio.play().catch(e => appendLog("Playback Error: " + e.message));
+        audio.play();
         toggleView('player');
     }
 
-    function togglePlay() {
-        audio.paused ? audio.play() : audio.pause();
-        document.getElementById('play-btn').textContent = audio.paused ? '▶' : '||';
-    }
-
-    // --- PRESETS (HOLD TO SAVE) ---
     function handlePresetStart(id) {
         state.isHolding = false;
         state.longPressTimer = setTimeout(() => {
             if (state.currentSource) {
                 state.presets[id] = state.currentSource;
-                saveData();
-                const btn = document.getElementById(`btn-${id}`);
-                btn.classList.add('bg-emerald-400', 'text-black');
-                setTimeout(() => btn.classList.remove('bg-emerald-400', 'text-black'), 500);
-                appendLog(`Saved ${state.currentSource.type} to Preset ${id}`);
+                sync('POST', { presets: state.presets, radioStations: state.radioStations, playbackPositions: state.playbackPositions });
+                document.getElementById(`btn-${id}`).classList.add('bg-emerald-400', 'text-black');
+                setTimeout(() => document.getElementById(`btn-${id}`).classList.remove('bg-emerald-400', 'text-black'), 500);
+                appendLog(`Saved to P${id}`);
                 state.isHolding = true;
-            } else {
-                appendLog("Nothing playing to save!");
             }
         }, 1000);
     }
 
     function handlePresetEnd(id) {
         clearTimeout(state.longPressTimer);
-        if (!state.isHolding) {
-            if (state.presets[id]) {
-                const p = state.presets[id];
-                appendLog(`Loading Preset ${id}: ${p.type}`);
-                p.type === 'radio' ? playRadio(p.data) : playBook(p.data.bookName, p.data.trackIdx);
-            } else {
-                appendLog(`Preset ${id} is empty`);
-            }
+        if (!state.isHolding && state.presets[id]) {
+            const p = state.presets[id];
+            p.type === 'radio' ? playRadio(p.data) : playBook(p.data.bookName, p.data.trackIdx);
         }
-    }
-
-    // --- SCANNING AUDIOBOOKS ---
-    async function scanServer() {
-        appendLog("Scanning /books directory...");
-        try {
-            const res = await fetch('./books/');
-            if (!res.ok) {
-                appendLog("Error: Could not list /books directory.");
-                return;
-            }
-            const text = await res.text();
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(text, 'text/html');
-            // Look for links that don't start with / or ? and end with /
-            const links = Array.from(doc.querySelectorAll('a'))
-                .map(a => a.getAttribute('href'))
-                .filter(h => h && !h.startsWith('?') && !h.startsWith('/') && h.endsWith('/'));
-
-            appendLog(`Found ${links.length} potential book folders.`);
-
-            for (const link of links) {
-                const bookName = decodeURIComponent(link.replace(/\/$/, ''));
-                const trackRes = await fetch(`./books/${link}`);
-                const trackText = await trackRes.text();
-                const trackDoc = parser.parseFromString(trackText, 'text/html');
-                const tracks = Array.from(trackDoc.querySelectorAll('a'))
-                    .map(a => a.getAttribute('href'))
-                    .filter(h => h.toLowerCase().endsWith('.mp3'))
-                    .map(h => ({ name: decodeURIComponent(h), url: `./books/${link}${h}` }));
-                
-                if (tracks.length > 0) {
-                    state.books[bookName] = tracks;
-                    appendLog(`Added book: ${bookName} (${tracks.length} tracks)`);
-                }
-            }
-            renderLibrary();
-        } catch (e) { appendLog("Scan failed: " + e.message); }
     }
 
     function renderLibrary() {
         const container = document.getElementById('library-content');
-        container.innerHTML = '';
-
-        // Radio Section
-        const rHeader = document.createElement('h3');
-        rHeader.className = "text-emerald-500 font-bold border-b border-emerald-900 pb-2";
-        rHeader.textContent = "RADIO STATIONS";
-        container.appendChild(rHeader);
+        container.innerHTML = '<h3 class="text-emerald-500 font-bold border-b border-emerald-900 pb-2">RADIO</h3>';
         state.radioStations.forEach(s => {
             const div = document.createElement('div');
             div.className = "flex justify-between items-center bg-zinc-900 p-3 rounded-lg border border-zinc-800";
             div.innerHTML = `<span>${s.name}</span> <button onclick='playRadio(${JSON.stringify(s)})' class="bg-emerald-900 px-3 py-1 rounded text-xs">TUNE</button>`;
             container.appendChild(div);
         });
-
-        // Books Section
-        const bHeader = document.createElement('h3');
-        bHeader.className = "text-emerald-500 font-bold border-b border-emerald-900 pb-2 mt-4";
-        bHeader.textContent = "AUDIOBOOKS";
-        container.appendChild(bHeader);
         Object.keys(state.books).forEach(bookName => {
             const div = document.createElement('div');
-            div.className = "p-3 bg-zinc-900 rounded-lg border border-zinc-800 mb-2";
+            div.className = "p-3 bg-zinc-900 rounded-lg border border-zinc-800 mt-4";
             div.innerHTML = `<div class="font-bold mb-2">${bookName}</div>`;
             state.books[bookName].forEach((t, i) => {
                 const btn = document.createElement('button');
-                btn.className = "block w-full text-left text-xs py-1 opacity-70 hover:opacity-100 truncate";
+                btn.className = "block w-full text-left text-xs py-1 opacity-70 truncate";
                 btn.textContent = t.name;
                 btn.onclick = () => playBook(bookName, i);
                 div.appendChild(btn);
@@ -286,48 +205,40 @@
         });
     }
 
-    function toggleView(view) {
-        document.getElementById('overlay-library').classList.toggle('hidden', view !== 'library');
-        document.getElementById('overlay-logs').classList.toggle('hidden', view !== 'logs');
+    function toggleView(v) { 
+        document.getElementById('overlay-library').classList.toggle('hidden', v !== 'library');
+        document.getElementById('overlay-logs').classList.toggle('hidden', v !== 'logs');
     }
 
     function addRadioStation() {
-        const name = document.getElementById('radio-name').value;
-        const url = document.getElementById('radio-url').value;
-        if (name && url) {
-            state.radioStations.push({ name, url });
-            saveData();
-            renderLibrary();
-            document.getElementById('radio-name').value = '';
-            document.getElementById('radio-url').value = '';
-            appendLog(`Added Radio: ${name}`);
+        const n = document.getElementById('radio-name').value;
+        const u = document.getElementById('radio-url').value;
+        if (n && u) { 
+            state.radioStations.push({ name: n, url: u }); 
+            sync('POST', { presets: state.presets, radioStations: state.radioStations, playbackPositions: state.playbackPositions }); 
+            renderLibrary(); 
         }
     }
 
     audio.ontimeupdate = () => {
-        const bar = document.getElementById('seek-bar');
-        bar.value = audio.currentTime;
-        bar.max = audio.duration || 0;
+        document.getElementById('seek-bar').value = audio.currentTime;
+        document.getElementById('seek-bar').max = audio.duration || 0;
         document.getElementById('current-time').textContent = formatTime(audio.currentTime);
         document.getElementById('duration').textContent = formatTime(audio.duration);
-        
         if (state.currentSource?.type === 'book' && Math.floor(audio.currentTime) % 15 === 0) {
             state.playbackPositions[`server:${state.currentSource.data.url}`] = audio.currentTime;
-            saveData();
+            sync('POST', { presets: state.presets, radioStations: state.radioStations, playbackPositions: state.playbackPositions });
         }
     };
 
-    function formatTime(s) {
-        if (isNaN(s)) return "00:00";
-        const m = Math.floor(s / 60);
-        const sec = Math.floor(s % 60);
-        return `${m.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`;
-    }
-
+    function formatTime(s) { if (isNaN(s)) return "00:00"; const m = Math.floor(s/60); const sec = Math.floor(s%60); return `${m.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`; }
+    function togglePlay() { audio.paused ? audio.play() : audio.pause(); document.getElementById('play-btn').textContent = audio.paused ? '▶' : '||'; }
     document.getElementById('seek-bar').oninput = (e) => audio.currentTime = e.target.value;
 
     async function init() {
-        await loadData();
+        appendLog("System Init v2.2");
+        const data = await sync('GET');
+        if (data) { state.presets = data.presets || {}; state.radioStations = data.radioStations || []; state.playbackPositions = data.playbackPositions || {}; }
         await scanServer();
     }
     init();
