@@ -86,6 +86,11 @@
                 <button onclick="togglePlay()" id="play-btn" class="w-1/3 glass-card bg-emerald-500 text-black text-4xl shadow-xl active:scale-95 transition-transform">▶</button>
                 <button onclick="smartSeek(30)" class="flex-1 glass-card bg-white/5 text-3xl active:scale-95 transition-transform">⏭</button>
             </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <button onclick="setSleepTimer(15)" class="glass-card bg-white/5 py-4 text-sm font-semibold tracking-wide uppercase active:scale-95 transition-transform">Sleep in 15 mins</button>
+                <button onclick="setSleepTimer(30)" class="glass-card bg-white/5 py-4 text-sm font-semibold tracking-wide uppercase active:scale-95 transition-transform">Sleep in 30 mins</button>
+            </div>
         </div>
     </main>
 
@@ -118,8 +123,13 @@
     let state = { presets: {}, radioStations: [], books: {}, currentSource: null, playbackPositions: {}, longPressTimer: null, isHolding: false, isManagerMode: false };
     let pendingResumeTime = 0;
     let isDragging = false;
+    let sleepTimerId = null;
+    let sleepIntervalId = null;
+    let sleepEndTime = null;
     const audio = document.getElementById('audio-player');
     const seekBar = document.getElementById('seek-bar');
+    const modeIndicator = document.getElementById('mode-indicator');
+    const defaultModeText = modeIndicator.textContent;
 
     // UI Sync for Play/Pause Button
     audio.addEventListener('play', () => { document.getElementById('play-btn').textContent = '||'; });
@@ -322,6 +332,38 @@
     function toggleDayMode() { document.body.classList.toggle('day-mode'); }
     function smartSeek(s) { if (!audio.src || isNaN(audio.duration)) return; audio.currentTime = Math.max(0, Math.min(audio.currentTime + s, audio.duration)); savePosition(); }
     document.getElementById('vol-control').oninput = (e) => audio.volume = e.target.value;
+
+    function updateSleepIndicator() {
+        if (!sleepEndTime) return;
+        const remainingMs = Math.max(0, sleepEndTime - Date.now());
+        const remainingSeconds = Math.floor(remainingMs / 1000);
+        const minutes = Math.floor(remainingSeconds / 60);
+        const seconds = remainingSeconds % 60;
+        modeIndicator.textContent = `SLEEP: ${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        if (remainingMs === 0) endSleepTimer();
+    }
+
+    function endSleepTimer() {
+        if (sleepTimerId) clearTimeout(sleepTimerId);
+        if (sleepIntervalId) clearInterval(sleepIntervalId);
+        sleepTimerId = null;
+        sleepIntervalId = null;
+        sleepEndTime = null;
+        audio.pause();
+        modeIndicator.textContent = 'SLEEP TIMER ENDED';
+        setTimeout(() => {
+            if (!sleepEndTime) modeIndicator.textContent = defaultModeText;
+        }, 3000);
+    }
+
+    function setSleepTimer(minutes) {
+        if (sleepTimerId) clearTimeout(sleepTimerId);
+        if (sleepIntervalId) clearInterval(sleepIntervalId);
+        sleepEndTime = Date.now() + minutes * 60 * 1000;
+        updateSleepIndicator();
+        sleepIntervalId = setInterval(updateSleepIndicator, 1000);
+        sleepTimerId = setTimeout(endSleepTimer, minutes * 60 * 1000);
+    }
 
     async function init() {
         const data = await sync('GET');
