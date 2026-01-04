@@ -1,25 +1,30 @@
 #!/usr/bin/env bash
 
-# --- Configuration (Pointed to your new Car Stereo Repo) ---
+# --- Configuration (Adjusted for Laptop/Home Directory) ---
 PORT_ARG=${1:-3005}
 REPO_URL="https://github.com/dylan7474/CarStereoStyleAudioApp.git"
-TARGET_DIR="/mnt/media/docker/carstereo/src"
-BOOKS_DIR="/mnt/media/Audio/Audible" 
-DATA_DIR="/mnt/media/docker/carstereo/data"
+TARGET_DIR="$HOME/carstereo/src"
+BOOKS_DIR="$HOME/my_audiobooks"
+DATA_DIR="$HOME/carstereo_data"
 SERVICE_UID=1002
 SERVICE_GID=1002
 
-echo "=== Deploying CarStereo AudioPlayer via Docker ==="
+echo "=== Deploying CarStereo AudioPlayer (Laptop Mode) ==="
 
 # 1. Environment Setup
+# Ensure directories exist and have proper permissions for the Docker user (1002)
+mkdir -p "$BOOKS_DIR"
 mkdir -p "$DATA_DIR"
 mkdir -p "$(dirname "$TARGET_DIR")"
+
+# Remove old source to ensure a fresh pull
 [ -d "$TARGET_DIR" ] && rm -rf "$TARGET_DIR"
+
 git clone "$REPO_URL" "$TARGET_DIR"
 cd "$TARGET_DIR"
 
-# 2. Use the existing robust server.js logic for Range Requests
-# This ensures large audiobooks seek correctly on the car interface.
+# 2. Generate robust server.js with Range Request & Custom Data support
+# This handles the specific 'presets' and 'radioStations' keys used by the Car Stereo app
 cat <<EOF > server.js
 const http = require('http');
 const fs = require('fs');
@@ -40,25 +45,113 @@ const MIME_TYPES = {
     '.m4b': 'audio/mp4',
 };
 
-// ... (Bookmark logic omitted for brevity, identical to your source 2)
-// This enables the /api/bookmarks endpoint used in your Settings panel.
+const ensureDataFile = () => {
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+    if (!fs.existsSync(DATA_FILE)) fs.writeFileSync(DATA_FILE, JSON.stringify({}, null, 2));
+};
+
+const loadBookmarks = () => {
+    try { ensureDataFile(); return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8') || '{}'); }
+    catch (err) { console.error('Load error:', err); return {}; }
+};
+
+const saveBookmarks = (data) => {
+    try { ensureDataFile(); fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2)); }
+    catch (err) { console.error('Save error:', err); }
+};
+
+const sendJson = (res, code, payload) => {
+    const body = JSON.stringify(payload);
+    res.writeHead(code, { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) });
+    res.end(body);
+};
+
+const handleApiBookmarks = (req, res, url) => {
+    const user = url.searchParams.get('user');
+    if (!user) return sendJson(res, 400, { error: 'Missing user id.' });
+
+    if (req.method === 'GET') {
+        const data = loadBookmarks();
+        return sendJson(res, 200, data[user] || { playbackPositions: {}, presets: {}, radioStations: [] });
+    }
+
+    if (req.method === 'POST') {
+        let body = '';
+        req.on('data', chunk => { body += chunk; });
+        req.on('end', () => {
+            try {
+                const payload = JSON.parse(body);
+                const data = loadBookmarks();
+                data[user] = {
+                    playbackPositions: payload.playbackPositions || {},
+                    presets: payload.presets || {},
+                    radioStations: payload.radioStations || [],
+                    updatedAt: new Date().toISOString()
+                };
+                saveBookmarks(data);
+                sendJson(res, 200, { ok: true });
+            } catch (err) { sendJson(res, 400, { error: 'Invalid JSON' }); }
+        });
+        return;
+    }
+    res.writeHead(405); res.end();
+};
+
+const serveStatic = (req, res, url) => {
+    const pathname = decodeURIComponent(url.pathname === '/' ? '/index.html' : url.pathname);
+    const normalizedPath = path.normalize(pathname).replace(/^(\.\.[\/\\\\])+/, '');
+    const filePath = path.join(STATIC_ROOT, normalizedPath);
+
+    fs.stat(filePath, (err, stats) => {
+        if (err) { res.writeHead(404); return res.end(); }
+        if (stats.isDirectory()) {
+            fs.readdir(filePath, (err, files) => {
+                if (err) { res.writeHead(500); return res.end(); }
+                const html = files.map(f => {
+                    const isDir = fs.statSync(path.join(filePath, f)).isDirectory();
+                    return \`<a href="\${isDir ? f + '/' : f}">\${f}</a>\`;
+                }).join('<br>');
+                res.writeHead(200, { 'Content-Type': 'text/html' });
+                res.end(\`<html><body>\${html}</body></html>\`);
+            });
+            return;
+        }
+
+        const ext = path.extname(filePath).toLowerCase();
+        const range = req.headers.range;
+        if (range) {
+            const parts = range.replace(/bytes=/, "").split("-");
+            const start = parseInt(parts[0], 10);
+            const end = parts[1] ? parseInt(parts[1], 10) : stats.size - 1;
+            res.writeHead(206, {
+                'Content-Range': \`bytes \${start}-\${end}/\${stats.size}\`,
+                'Accept-Ranges': 'bytes',
+                'Content-Length': (end - start) + 1,
+                'Content-Type': MIME_TYPES[ext] || 'application/octet-stream',
+            });
+            fs.createReadStream(filePath, {start, end}).pipe(res);
+        } else {
+            res.writeHead(200, { 
+                'Content-Length': stats.size, 
+                'Content-Type': MIME_TYPES[ext] || 'application/octet-stream',
+                'Accept-Ranges': 'bytes' 
+            });
+            fs.createReadStream(filePath).pipe(res);
+        }
+    });
+};
+
+http.createServer((req, res) => {
+    const url = new URL(req.url, \`http://\${req.headers.host}\`);
+    if (url.pathname.startsWith('/api/bookmarks')) return handleApiBookmarks(req, res, url);
+    serveStatic(req, res, url);
+}).listen(PORT);
 EOF
 
-# 3. Build the Container
-cat <<EOF > Dockerfile
-FROM node:20-slim
-WORKDIR /app
-COPY server.js index.html ./
-RUN mkdir books data && chown -R $SERVICE_UID:$SERVICE_GID /app
-USER $SERVICE_UID
-EXPOSE $PORT_ARG
-ENV PORT=$PORT_ARG
-ENV DATA_DIR=/app/data
-ENV STATIC_ROOT=/app
-CMD ["node", "server.js"]
-EOF
-
+# 3. Build & Launch
+# Prepare the local data directory for the container's internal user
 sudo chown -R $SERVICE_UID:$SERVICE_GID "$DATA_DIR"
+
 docker build -t carstereo-player .
 docker stop carstereo-player 2>/dev/null || true
 docker rm carstereo-player 2>/dev/null || true
@@ -71,4 +164,10 @@ docker run -d \
 --restart unless-stopped \
 carstereo-player
 
-echo "Deployed at http://$(hostname -I | awk '{print $1}'):$PORT_ARG"
+# Improved IP detection for local laptops (Linux)
+IP_ADDR=$(hostname -I | awk '{print $1}')
+[ -z "$IP_ADDR" ] && IP_ADDR="localhost"
+
+echo "========================================="
+echo "Deployed at http://\${IP_ADDR}:\$PORT_ARG"
+echo "========================================="
