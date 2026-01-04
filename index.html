@@ -3,95 +3,162 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CarStereo AudioPlayer v2.9</title>
+    <title>CarStereo UltraModern v3.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
-        :root { --main-bg: #050505; --main-text: #10b981; --panel-bg: rgba(6, 78, 59, 0.1); --border: #064e3b; }
-        .day-mode { --main-bg: #f3f4f6; --main-text: #065f46; --panel-bg: #ffffff; --border: #d1d5db; }
-        body { background-color: var(--main-bg); color: var(--main-text); font-family: 'Courier New', Courier, monospace; transition: all 0.3s ease; }
-        .lcd-glow { text-shadow: 0 0 10px rgba(16, 185, 129, 0.5); }
-        .preset-btn { transition: all 0.2s; border: 2px solid var(--border); background: var(--panel-bg); position: relative; overflow: hidden; }
-        .preset-btn:active { background: #10b981; color: #000; transform: scale(0.95); }
-        .preset-label { font-size: 0.65rem; position: absolute; bottom: 4px; left: 0; right: 0; opacity: 0.8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 4px; font-weight: bold; }
-        input[type=range] { accent-color: #10b981; height: 16px; width: 100%; cursor: pointer; }
-        .safe-btn { padding: 12px 16px; font-weight: bold; text-transform: uppercase; border-radius: 12px; transition: opacity 0.2s; }
-        .safe-btn:active { opacity: 0.6; }
-        /* v2.9 Highlight for active library preset buttons */
-        .lib-p-active { background-color: #10b981 !important; color: #000 !important; font-weight: bold; }
+        :root { 
+            --bg: #0a0c10; --text: #e2e8f0; --accent: #10b981; 
+            --panel: rgba(30, 41, 59, 0.5); --glass: rgba(255, 255, 255, 0.03);
+        }
+        .day-mode { 
+            --bg: #f8fafc; --text: #1e293b; --accent: #059669; 
+            --panel: rgba(226, 232, 240, 0.8); --glass: rgba(0, 0, 0, 0.05);
+        }
+        
+        body { 
+            background: radial-gradient(circle at top right, #1e293b, var(--bg)); 
+            color: var(--text); font-family: 'Inter', sans-serif; transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1); 
+        }
+        
+        .glass-card { 
+            background: var(--panel); backdrop-filter: blur(12px); 
+            border: 1px solid rgba(255,255,255,0.1); border-radius: 2rem; 
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+        }
+
+        .lcd-display {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, rgba(0,0,0,0) 100%);
+        }
+
+        .preset-btn { 
+            background: var(--glass); border: 1px solid rgba(255,255,255,0.05);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); border-radius: 1.25rem;
+        }
+        .preset-btn:active { transform: scale(0.95); background: var(--accent); color: white; }
+        
+        .lib-p-active { 
+            background: var(--accent) !important; color: white !important; 
+            box-shadow: 0 0 15px var(--accent); border-color: transparent;
+        }
+
+        .preset-label { 
+            font-size: 0.65rem; font-weight: 600; text-transform: uppercase;
+            letter-spacing: 0.05em; opacity: 0.7; 
+        }
+
+        input[type=range] { 
+            height: 6px; border-radius: 3px; background: rgba(255,255,255,0.1);
+            appearance: none; outline: none;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            appearance: none; width: 18px; height: 18px; 
+            background: var(--accent); border-radius: 50%; cursor: pointer;
+            box-shadow: 0 0 10px var(--accent);
+        }
+
+        .safe-btn { 
+            border-radius: 1rem; font-weight: 600; letter-spacing: 0.025em;
+            transition: all 0.2s;
+        }
     </style>
 </head>
-<body class="h-screen flex flex-col overflow-hidden">
-    <header class="p-4 flex justify-between items-center border-b border-emerald-900/30">
-        <div class="flex flex-col">
-            <h1 class="text-xl font-bold tracking-tighter lcd-glow">CAR UNIT v2.9</h1>
-            <div id="v-tag" class="text-[10px] opacity-50">PRESET TOGGLE & FEEDBACK</div>
+<body class="h-screen flex flex-col overflow-hidden p-4 sm:p-6">
+
+    <header class="flex justify-between items-center mb-6">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight">INFOTAINMENT <span class="text-emerald-500 font-light">3.0</span></h1>
+            <p class="text-[10px] uppercase tracking-[0.3em] opacity-40">Connected Audio System</p>
         </div>
-        <div class="flex gap-2">
-            <button onclick="toggleDayMode()" class="safe-btn border border-emerald-900 text-[10px]">☀️/🌙</button>
-            <button onclick="toggleView('library')" class="safe-btn bg-emerald-900 text-black text-[10px]">Library</button>
-            <button onclick="toggleView('logs')" class="safe-btn border border-emerald-900 text-[10px]">Logs</button>
+        <div class="flex gap-3">
+            <button onclick="toggleDayMode()" class="p-3 rounded-full bg-white/5 border border-white/10">☀️</button>
+            <button onclick="toggleView('library')" class="safe-btn px-6 py-2 bg-emerald-500 text-black">LIBRARY</button>
         </div>
     </header>
 
-    <main id="view-player" class="flex-1 flex flex-col p-4 gap-4">
-        <div class="flex-1 rounded-3xl border-2 border-emerald-900/50 bg-emerald-950/10 p-6 flex flex-col justify-center relative overflow-hidden">
-            <div class="absolute top-4 left-6 text-[10px] uppercase opacity-40 tracking-[0.2em]" id="mode-indicator">SYSTEM READY</div>
-            <div class="text-3xl font-bold truncate mb-2 lcd-glow" id="display-title">READY</div>
-            <div class="text-lg opacity-60 truncate" id="display-subtitle">SELECT SOURCE</div>
-            <div id="playback-info" class="mt-6">
+    <main id="view-player" class="flex-1 flex flex-col gap-6">
+        <div class="flex-1 glass-card lcd-display p-8 flex flex-col justify-center relative">
+            <div class="mb-2 text-[10px] font-bold tracking-widest text-emerald-500 uppercase" id="mode-indicator">Streaming Active</div>
+            <h2 class="text-4xl sm:text-5xl font-bold mb-2 tracking-tight truncate" id="display-title">System Ready</h2>
+            <p class="text-lg opacity-40 font-light truncate" id="display-subtitle">Select a preset or source to begin</p>
+            
+            <div id="playback-info" class="mt-12">
                 <input type="range" id="seek-bar" value="0">
-                <div class="flex justify-between text-xs mt-2 font-mono font-bold">
+                <div class="flex justify-between text-[11px] mt-3 font-semibold opacity-60">
                     <span id="current-time">00:00</span>
                     <span id="duration">00:00</span>
                 </div>
             </div>
         </div>
 
-        <div class="flex items-center gap-4 px-2">
-            <span class="text-xs font-bold">VOL</span>
-            <input type="range" id="vol-control" min="0" max="1" step="0.1" value="1">
-        </div>
+        <div class="flex flex-col gap-6 px-2">
+            <div class="flex items-center gap-6">
+                <span class="text-[10px] font-black opacity-30 tracking-tighter">VOL</span>
+                <input type="range" id="vol-control" min="0" max="1" step="0.05" value="1">
+            </div>
 
-        <div class="grid grid-cols-3 gap-3">
-            <button onmousedown="handlePresetStart(1)" onmouseup="handlePresetEnd(1)" ontouchstart="handlePresetStart(1)" ontouchend="handlePresetEnd(1)" class="preset-btn h-20 rounded-2xl text-3xl font-bold" id="btn-1">1<span class="preset-label" id="label-1"></span></button>
-            <button onmousedown="handlePresetStart(2)" onmouseup="handlePresetEnd(2)" ontouchstart="handlePresetStart(2)" ontouchend="handlePresetEnd(2)" class="preset-btn h-20 rounded-2xl text-3xl font-bold" id="btn-2">2<span class="preset-label" id="label-2"></span></button>
-            <button onmousedown="handlePresetStart(3)" onmouseup="handlePresetEnd(3)" ontouchstart="handlePresetStart(3)" ontouchend="handlePresetEnd(3)" class="preset-btn h-20 rounded-2xl text-3xl font-bold" id="btn-3">3<span class="preset-label" id="label-3"></span></button>
-            <button onmousedown="handlePresetStart(4)" onmouseup="handlePresetEnd(4)" ontouchstart="handlePresetStart(4)" ontouchend="handlePresetEnd(4)" class="preset-btn h-20 rounded-2xl text-3xl font-bold" id="btn-4">4<span class="preset-label" id="label-4"></span></button>
-            <button onmousedown="handlePresetStart(5)" onmouseup="handlePresetEnd(5)" ontouchstart="handlePresetStart(5)" ontouchend="handlePresetEnd(5)" class="preset-btn h-20 rounded-2xl text-3xl font-bold" id="btn-5">5<span class="preset-label" id="label-5"></span></button>
-            <button onmousedown="handlePresetStart(6)" onmouseup="handlePresetEnd(6)" ontouchstart="handlePresetStart(6)" ontouchend="handlePresetEnd(6)" class="preset-btn h-20 rounded-2xl text-3xl font-bold" id="btn-6">6<span class="preset-label" id="label-6"></span></button>
-        </div>
+            <div class="grid grid-cols-3 sm:grid-cols-6 gap-3">
+                <button onmousedown="handlePresetStart(1)" onmouseup="handlePresetEnd(1)" class="preset-btn h-20 flex flex-col items-center justify-center gap-1" id="btn-1">
+                    <span class="text-xl font-bold">1</span>
+                    <span class="preset-label truncate w-full px-2" id="label-1"></span>
+                </button>
+                <button onmousedown="handlePresetStart(2)" onmouseup="handlePresetEnd(2)" class="preset-btn h-20 flex flex-col items-center justify-center gap-1" id="btn-2">
+                    <span class="text-xl font-bold">2</span>
+                    <span class="preset-label truncate w-full px-2" id="label-2"></span>
+                </button>
+                <button onmousedown="handlePresetStart(3)" onmouseup="handlePresetEnd(3)" class="preset-btn h-20 flex flex-col items-center justify-center gap-1" id="btn-3">
+                    <span class="text-xl font-bold">3</span>
+                    <span class="preset-label truncate w-full px-2" id="label-3"></span>
+                </button>
+                <button onmousedown="handlePresetStart(4)" onmouseup="handlePresetEnd(4)" class="preset-btn h-20 flex flex-col items-center justify-center gap-1" id="btn-4">
+                    <span class="text-xl font-bold">4</span>
+                    <span class="preset-label truncate w-full px-2" id="label-4"></span>
+                </button>
+                <button onmousedown="handlePresetStart(5)" onmouseup="handlePresetEnd(5)" class="preset-btn h-20 flex flex-col items-center justify-center gap-1" id="btn-5">
+                    <span class="text-xl font-bold">5</span>
+                    <span class="preset-label truncate w-full px-2" id="label-5"></span>
+                </button>
+                <button onmousedown="handlePresetStart(6)" onmouseup="handlePresetEnd(6)" class="preset-btn h-20 flex flex-col items-center justify-center gap-1" id="btn-6">
+                    <span class="text-xl font-bold">6</span>
+                    <span class="preset-label truncate w-full px-2" id="label-6"></span>
+                </button>
+            </div>
 
-        <div class="h-24 flex gap-4 items-center">
-            <button onclick="prevTrack()" class="flex-1 h-full bg-zinc-800 rounded-2xl text-4xl border border-zinc-700 active:bg-emerald-600">⏮</button>
-            <button onclick="togglePlay()" id="play-btn" class="w-1/3 h-full bg-emerald-600 text-black rounded-2xl text-5xl shadow-lg active:bg-emerald-400">▶</button>
-            <button onclick="nextTrack()" class="flex-1 h-full bg-zinc-800 rounded-2xl text-4xl border border-zinc-700 active:bg-emerald-600">⏭</button>
+            <div class="flex gap-4 h-24">
+                <button onclick="prevTrack()" class="flex-1 glass-card bg-white/5 text-3xl active:scale-95 transition-transform">⏮</button>
+                <button onclick="togglePlay()" id="play-btn" class="w-1/3 glass-card bg-emerald-500 text-black text-4xl shadow-xl shadow-emerald-500/20 active:scale-95 transition-transform">▶</button>
+                <button onclick="nextTrack()" class="flex-1 glass-card bg-white/5 text-3xl active:scale-95 transition-transform">⏭</button>
+            </div>
         </div>
     </main>
 
-    <div id="overlay-library" class="fixed inset-0 bg-black z-50 p-6 hidden flex flex-col">
-        <div class="flex justify-between items-center mb-4">
-            <h2 class="text-2xl font-bold">LIBRARY</h2>
-            <div class="flex gap-2">
-                <button id="mgr-toggle" onclick="toggleManager()" class="safe-btn border border-blue-900 text-[10px]">Manage Radio</button>
-                <button onclick="toggleView('player')" class="safe-btn bg-red-900 text-white">CLOSE</button>
+    <div id="overlay-library" class="fixed inset-0 bg-[#0a0c10]/95 backdrop-blur-2xl z-50 p-6 hidden flex flex-col">
+        <div class="flex justify-between items-center mb-8">
+            <h2 class="text-3xl font-bold tracking-tight">Media Explorer</h2>
+            <div class="flex gap-3">
+                <button id="mgr-toggle" onclick="toggleManager()" class="safe-btn border border-emerald-500/30 px-4 py-2 text-[11px]">MANAGE MODE</button>
+                <button onclick="toggleView('player')" class="safe-btn bg-red-500/20 text-red-500 px-4 py-2 text-[11px]">EXIT</button>
             </div>
         </div>
-        <input type="text" id="lib-search" oninput="renderLibrary()" placeholder="SEARCH BOOKS/STATIONS..." class="w-full bg-zinc-900 border-2 border-emerald-900 p-4 rounded-xl mb-4 text-emerald-400">
-        <div id="library-content" class="flex-1 overflow-y-auto space-y-4 pr-2"></div>
-        <div class="mt-4 p-4 border border-emerald-900 rounded-xl bg-zinc-900/50">
-            <button onclick="toggleRadioForm()" class="w-full text-xs opacity-50 mb-2">ADD RADIO STATION (+)</button>
-            <div id="radio-form" class="hidden flex flex-col gap-2">
-                <input type="text" id="radio-name" placeholder="Name" class="bg-black border border-emerald-900 p-2 rounded">
-                <input type="text" id="radio-url" placeholder="URL" class="bg-black border border-emerald-900 p-2 rounded">
-                <button onclick="addRadioStation()" class="bg-emerald-700 text-black font-bold p-3 rounded-xl">SAVE STATION</button>
+        
+        <input type="text" id="lib-search" oninput="renderLibrary()" placeholder="Search library..." class="w-full bg-white/5 border border-white/10 p-5 rounded-2xl mb-6 text-xl outline-none focus:border-emerald-500 transition-colors">
+        <div id="library-content" class="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar"></div>
+        
+        <div class="mt-6 p-6 glass-card">
+            <button onclick="toggleRadioForm()" class="text-xs font-bold opacity-30 hover:opacity-100 transition-opacity uppercase tracking-widest">Add Custom Stream (+)</button>
+            <div id="radio-form" class="hidden flex flex-col gap-3 mt-4">
+                <input type="text" id="radio-name" placeholder="Station Name" class="bg-black/50 border border-white/10 p-4 rounded-xl">
+                <input type="text" id="radio-url" placeholder="URL" class="bg-black/50 border border-white/10 p-4 rounded-xl">
+                <button onclick="addRadioStation()" class="bg-emerald-500 text-black font-bold p-4 rounded-xl">Save Station</button>
             </div>
         </div>
     </div>
 
-    <div id="overlay-logs" class="fixed inset-0 bg-black z-50 p-6 hidden flex flex-col font-mono text-xs">
-        <div class="flex justify-between mb-4"><h2 class="text-xl">SYSTEM LOGS</h2><button onclick="toggleView('player')">✕</button></div>
-        <div id="log-content" class="flex-1 bg-zinc-900 p-4 rounded overflow-y-auto border border-emerald-900"></div>
+    <div id="overlay-logs" class="fixed inset-0 bg-black/95 z-50 p-8 hidden flex flex-col font-mono text-[10px]">
+        <div class="flex justify-between items-center mb-6"><h2 class="text-lg opacity-50">DIAGNOSTICS v3.0</h2><button onclick="toggleView('player')">✕</button></div>
+        <div id="log-content" class="flex-1 bg-black p-4 rounded-xl border border-white/5 overflow-y-auto leading-relaxed"></div>
     </div>
+
     <audio id="audio-player" class="hidden"></audio>
 
 <script>
@@ -104,7 +171,8 @@
         const log = document.getElementById('log-content');
         if (!log) return;
         const entry = document.createElement('div');
-        entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+        entry.className = "mb-1 border-b border-white/5 pb-1 opacity-70";
+        entry.textContent = `> ${msg}`;
         log.appendChild(entry);
         log.scrollTop = log.scrollHeight;
     }
@@ -118,7 +186,8 @@
     function toggleRadioForm() { document.getElementById('radio-form').classList.toggle('hidden'); }
     function toggleManager() { 
         state.isManagerMode = !state.isManagerMode; 
-        document.getElementById('mgr-toggle').textContent = state.isManagerMode ? "Done Managing" : "Manage Radio";
+        document.getElementById('mgr-toggle').classList.toggle('bg-emerald-500', state.isManagerMode);
+        document.getElementById('mgr-toggle').classList.toggle('text-black', state.isManagerMode);
         renderLibrary(); 
     }
 
@@ -131,11 +200,11 @@
             if (body) { options.headers = { 'Content-Type': 'application/json' }; options.body = JSON.stringify(body); }
             const res = await fetch(`${BOOKMARKS_ENDPOINT}?user=${encodeURIComponent(USER_ID)}`, options);
             return res.ok ? await res.json() : null;
-        } catch (e) { appendLog("Sync Error: " + e.message); return null; }
+        } catch (e) { appendLog("Sync Failure: " + e.message); return null; }
     }
 
     async function scanServer() {
-        appendLog("Scanning v2.9: Checking /books...");
+        appendLog("System Scan Initialized...");
         try {
             const res = await fetch('./books/');
             if (!res.ok) return;
@@ -158,9 +227,8 @@
                     state.books[fileName] = [{ name: fileName, url: `./books/${link}` }];
                 }
             }
-            appendLog(`Scan complete.`);
             renderLibrary();
-        } catch (e) { appendLog("Scan failed: " + e.message); }
+        } catch (e) { appendLog("Scan Error: " + e.message); }
     }
 
     function handlePresetStart(id) {
@@ -169,8 +237,8 @@
             if (state.currentSource) {
                 state.presets[id] = state.currentSource;
                 saveAllData();
-                document.getElementById(`btn-${id}`).classList.add('bg-emerald-400', 'text-black');
-                setTimeout(() => document.getElementById(`btn-${id}`).classList.remove('bg-emerald-400', 'text-black'), 500);
+                document.getElementById(`btn-${id}`).classList.add('bg-emerald-500', 'text-black');
+                setTimeout(() => document.getElementById(`btn-${id}`).classList.remove('bg-emerald-500', 'text-black'), 500);
                 updatePresetLabels();
                 state.isHolding = true;
             }
@@ -185,34 +253,20 @@
         }
     }
 
-    // v2.9 Toggle logic for Quick Assign
     function toggleQuickAssign(id, type, data) {
         const existing = state.presets[id];
-        const isMatch = existing && 
-                       existing.type === type && 
-                       (type === 'radio' ? existing.data.url === data.url : existing.data.url === data.url);
-
-        if (isMatch) {
-            delete state.presets[id];
-            appendLog(`Cleared P${id}`);
-        } else {
-            state.presets[id] = { type, data };
-            appendLog(`Assigned P${id}`);
-        }
+        const isMatch = existing && existing.type === type && existing.data.url === data.url;
+        if (isMatch) { delete state.presets[id]; } else { state.presets[id] = { type, data }; }
         saveAllData();
         updatePresetLabels();
-        renderLibrary(); // Force refresh to update button colors
+        renderLibrary(); 
     }
 
     function updatePresetLabels() {
         for (let i = 1; i <= 6; i++) {
             const label = document.getElementById(`label-${i}`);
             const p = state.presets[i];
-            if (p) {
-                label.textContent = p.type === 'radio' ? p.data.name : (p.data.name || p.data.bookName);
-            } else {
-                label.textContent = "";
-            }
+            label.textContent = p ? (p.type === 'radio' ? p.data.name : (p.data.name || p.data.bookName)) : "";
         }
     }
 
@@ -226,62 +280,61 @@
         Object.keys(state.books).forEach(bookName => {
             state.books[bookName].filter(t => t.name.toLowerCase().includes(query) || bookName.toLowerCase().includes(query)).forEach((t, i) => {
                 const bookData = { bookName, trackIdx: i, url: t.url, name: t.name };
-                const displayLabel = (bookName === t.name) ? t.name : `${bookName} - ${t.name}`;
-                container.appendChild(createLibEntry(displayLabel, () => playBook(bookName, i), 'book', bookData));
+                const label = (bookName === t.name) ? t.name : `${bookName} - ${t.name}`;
+                container.appendChild(createLibEntry(label, () => playBook(bookName, i), 'book', bookData));
             });
         });
     }
 
     function createLibEntry(label, tuneFn, type, data, idx = null) {
         const div = document.createElement('div');
-        div.className = "flex flex-col bg-zinc-900 border-2 border-zinc-800 p-4 rounded-2xl gap-3";
-        let managementTools = (state.isManagerMode && type === 'radio' && idx !== null) ? `
-            <div class="flex gap-2 w-full mt-2">
-                <button onclick="this.edit(${idx})" class="bg-blue-900 safe-btn flex-1 text-[10px]">EDIT NAME/URL</button>
-                <button onclick="this.del(${idx})" class="bg-red-900 safe-btn flex-1 text-[10px]">DELETE</button>
+        div.className = "glass-card p-6 flex flex-col gap-4";
+        
+        let tools = (state.isManagerMode && type === 'radio' && idx !== null) ? `
+            <div class="flex gap-2 pt-2 border-t border-white/5">
+                <button onclick="this.edit(${idx})" class="flex-1 bg-blue-500/10 text-blue-400 py-3 rounded-xl text-[10px] font-bold">RENAME</button>
+                <button onclick="this.del(${idx})" class="flex-1 bg-red-500/10 text-red-400 py-3 rounded-xl text-[10px] font-bold">DELETE</button>
             </div>` : '';
         
-        // v2.9 Logic to check if a preset button should be highlighted
         const pButtons = [1,2,3,4,5,6].map(p => {
             const activePreset = state.presets[p];
             const isActive = activePreset && activePreset.type === type && activePreset.data.url === data.url;
-            const activeClass = isActive ? "lib-p-active" : "";
-            return `<button onclick="this.assign(${p})" class="bg-zinc-700 px-3 py-2 rounded-lg text-[10px] font-bold ${activeClass}">P${p}</button>`;
+            return `<button onclick="this.assign(${p})" class="w-10 h-10 rounded-lg text-[10px] font-black ${isActive ? 'lib-p-active' : 'bg-white/5'}">P${p}</button>`;
         }).join('');
 
         div.innerHTML = `
-            <div class="font-bold truncate text-lg">${label}</div>
-            <div class="flex flex-wrap gap-2">
-                <button class="safe-btn bg-emerald-600 text-black flex-1" onclick="this.tune()">TUNE</button>
+            <div class="font-bold truncate text-lg tracking-tight">${label}</div>
+            <div class="flex items-center gap-3">
+                <button class="flex-1 bg-emerald-500 text-black py-3 rounded-xl font-bold text-xs" onclick="this.tune()">TUNE</button>
                 <div class="flex gap-1">${pButtons}</div>
-            </div>${managementTools}`;
+            </div>${tools}`;
         
-        div.querySelector('button.bg-emerald-600').tune = tuneFn;
+        div.querySelector('button.bg-emerald-500').tune = tuneFn;
         div.querySelectorAll('button[onclick^="this.assign"]').forEach(b => {
             const p = b.getAttribute('onclick').match(/\d+/)[0];
             b.onclick = () => toggleQuickAssign(p, type, data);
         });
         if (state.isManagerMode && type === 'radio') {
-            div.querySelector('button.bg-blue-900').edit = editRadio;
-            div.querySelector('button.bg-red-900').del = deleteRadio;
+            div.querySelector('button.bg-blue-500/10').edit = editRadio;
+            div.querySelector('button.bg-red-500/10').del = deleteRadio;
         }
         return div;
     }
 
     function editRadio(idx) {
         const s = state.radioStations[idx];
-        const n = prompt("Edit Name:", s.name);
+        const n = prompt("Edit Station Name:", s.name);
         const u = prompt("Edit URL:", s.url);
         if (n && u) { state.radioStations[idx] = {name:n, url:u}; saveAllData(); renderLibrary(); }
     }
     function deleteRadio(idx) {
-        if(confirm("Delete Station?")) { state.radioStations.splice(idx, 1); saveAllData(); renderLibrary(); }
+        if(confirm("Permanently delete this station?")) { state.radioStations.splice(idx, 1); saveAllData(); renderLibrary(); }
     }
     function playRadio(station) {
         state.currentSource = { type: 'radio', data: station };
         audio.src = station.url;
         document.getElementById('display-title').textContent = station.name.toUpperCase();
-        document.getElementById('display-subtitle').textContent = "RADIO";
+        document.getElementById('display-subtitle').textContent = "LIVE BROADCAST";
         document.getElementById('playback-info').style.opacity = "0.2";
         audio.play(); toggleView('player');
     }
@@ -290,7 +343,7 @@
         state.currentSource = { type: 'book', data: { bookName, trackIdx, url: track.url, name: track.name } };
         audio.src = track.url;
         document.getElementById('display-title').textContent = track.name.toUpperCase();
-        document.getElementById('display-subtitle').textContent = (bookName === track.name) ? "FILE" : bookName.toUpperCase();
+        document.getElementById('display-subtitle').textContent = (bookName === track.name) ? "LOCAL STORAGE" : bookName.toUpperCase();
         document.getElementById('playback-info').style.opacity = "1";
         const trackKey = `server:${track.url}`;
         if (state.playbackPositions[trackKey]) audio.currentTime = state.playbackPositions[trackKey];
@@ -317,7 +370,7 @@
     function formatTime(s) { if(isNaN(s)) return "00:00"; const m=Math.floor(s/60); const sec=Math.floor(s%60); return `${m.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`; }
     function togglePlay() { audio.paused ? audio.play() : audio.pause(); }
     async function init() {
-        appendLog("Car Stereo Init v2.9");
+        appendLog("Infotainment v3.0 Booting...");
         const data = await sync('GET');
         if (data) { Object.assign(state, data); }
         await scanServer();
