@@ -9,11 +9,11 @@
     <link href="https://fonts.cdnfonts.com/css/dseg7-classic" rel="stylesheet">
     <style>
         :root { 
-            --bg: #0a0c10; --text: #e2e8f0; --accent: #10b981; 
+            --bg: #0a0c10; --text: #e2e8f0; --accent: #10b981; --time-color: #f59e0b;
             --panel: rgba(30, 41, 59, 0.5); --glass: rgba(255, 255, 255, 0.03);
         }
         .day-mode { 
-            --bg: #f8fafc; --text: #1e293b; --accent: #059669; 
+            --bg: #f8fafc; --text: #1e293b; --accent: #059669; --time-color: #d97706;
             --panel: rgba(226, 232, 240, 0.8); --glass: rgba(0, 0, 0, 0.05);
         }
         body { 
@@ -37,7 +37,8 @@
             position: relative;
             display: inline-block;
             line-height: 1;
-            text-shadow: 0 0 2px var(--accent), 0 0 8px var(--accent), 0 0 18px var(--accent);
+            color: var(--time-color);
+            text-shadow: 0 0 2px var(--time-color), 0 0 8px var(--time-color), 0 0 18px var(--time-color);
             animation: flicker 3.5s infinite;
         }
         .time-display::before {
