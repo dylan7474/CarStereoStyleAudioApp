@@ -18,7 +18,7 @@ CarStereoStyleAudioApp is a lightweight web app that presents a car-stereo-inspi
 - Sleep timer displays a live countdown when active.
 - Preset buttons now highlight the active source during playback.
 - Offline-first library browsing now uses cached metadata when connectivity drops.
-- The main display now emphasizes a large digital time readout instead of track metadata.
+- The main display now uses a nixie-inspired time readout for a steampunk look.
 
 ## Improvement Ideas
 
