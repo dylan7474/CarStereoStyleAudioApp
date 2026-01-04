@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CarStereo Infotainment v4.0</title>
+    <title>CarStereo Infotainment v4.1</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
@@ -40,7 +40,7 @@
 
     <header class="flex justify-between items-center mb-6">
         <div>
-            <h1 class="text-2xl font-bold tracking-tight">INFOTAINMENT <span class="text-emerald-500 font-light">4.0</span></h1>
+            <h1 class="text-2xl font-bold tracking-tight">INFOTAINMENT <span class="text-emerald-500 font-light">4.1</span></h1>
             <p class="text-[10px] uppercase tracking-[0.3em] opacity-40">System Unified & Stable</p>
         </div>
         <div class="flex gap-3">
@@ -70,6 +70,11 @@
             <div class="flex items-center gap-6">
                 <span class="text-[10px] font-black opacity-30 tracking-tighter">VOL</span>
                 <input type="range" id="vol-control" min="0" max="1" step="0.05" value="1">
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <button onclick="setSleepTimer(15)" class="glass-card bg-white/5 py-3 text-xs font-semibold tracking-wide uppercase active:scale-95 transition-transform">Sleep in 15 mins</button>
+                <button onclick="setSleepTimer(30)" class="glass-card bg-white/5 py-3 text-xs font-semibold tracking-wide uppercase active:scale-95 transition-transform">Sleep in 30 mins</button>
             </div>
 
             <div class="grid grid-cols-3 sm:grid-cols-6 gap-3">
@@ -118,8 +123,13 @@
     let state = { presets: {}, radioStations: [], books: {}, currentSource: null, playbackPositions: {}, longPressTimer: null, isHolding: false, isManagerMode: false };
     let pendingResumeTime = 0;
     let isDragging = false;
+    let sleepTimerId = null;
+    let sleepIntervalId = null;
+    let sleepEndTime = null;
     const audio = document.getElementById('audio-player');
     const seekBar = document.getElementById('seek-bar');
+    const modeIndicator = document.getElementById('mode-indicator');
+    const defaultModeText = modeIndicator.textContent;
 
     // UI Sync for Play/Pause Button
     audio.addEventListener('play', () => { document.getElementById('play-btn').textContent = '||'; });
@@ -322,6 +332,38 @@
     function toggleDayMode() { document.body.classList.toggle('day-mode'); }
     function smartSeek(s) { if (!audio.src || isNaN(audio.duration)) return; audio.currentTime = Math.max(0, Math.min(audio.currentTime + s, audio.duration)); savePosition(); }
     document.getElementById('vol-control').oninput = (e) => audio.volume = e.target.value;
+
+    function updateSleepIndicator() {
+        if (!sleepEndTime) return;
+        const remainingMs = Math.max(0, sleepEndTime - Date.now());
+        const remainingSeconds = Math.floor(remainingMs / 1000);
+        const minutes = Math.floor(remainingSeconds / 60);
+        const seconds = remainingSeconds % 60;
+        modeIndicator.textContent = `SLEEP: ${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        if (remainingMs === 0) endSleepTimer();
+    }
+
+    function endSleepTimer() {
+        if (sleepTimerId) clearTimeout(sleepTimerId);
+        if (sleepIntervalId) clearInterval(sleepIntervalId);
+        sleepTimerId = null;
+        sleepIntervalId = null;
+        sleepEndTime = null;
+        audio.pause();
+        modeIndicator.textContent = 'SLEEP TIMER ENDED';
+        setTimeout(() => {
+            if (!sleepEndTime) modeIndicator.textContent = defaultModeText;
+        }, 3000);
+    }
+
+    function setSleepTimer(minutes) {
+        if (sleepTimerId) clearTimeout(sleepTimerId);
+        if (sleepIntervalId) clearInterval(sleepIntervalId);
+        sleepEndTime = Date.now() + minutes * 60 * 1000;
+        updateSleepIndicator();
+        sleepIntervalId = setInterval(updateSleepIndicator, 1000);
+        sleepTimerId = setTimeout(endSleepTimer, minutes * 60 * 1000);
+    }
 
     async function init() {
         const data = await sync('GET');
