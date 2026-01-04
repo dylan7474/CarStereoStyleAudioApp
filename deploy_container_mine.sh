@@ -3,9 +3,9 @@
 # --- Configuration ---
 PORT_ARG=${1:-3005}
 REPO_URL="https://github.com/dylan7474/CarStereoStyleAudioApp.git"
-TARGET_DIR="$HOME/carstereo/src"
-BOOKS_DIR="$HOME/my_audiobooks"
-DATA_DIR="$HOME/carstereo_data"
+TARGET_DIR="/mnt/media/docker/carstereo/src"
+BOOKS_DIR="/mnt/media/Audio/Audible"
+DATA_DIR="/mnt/media/docker/carstereo/data"
 SERVICE_UID=1002
 SERVICE_GID=1002
 
