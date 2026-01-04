@@ -38,8 +38,10 @@
             display: inline-block;
             line-height: 1;
             color: var(--time-color);
-            text-shadow: 0 0 2px var(--time-color), 0 0 8px var(--time-color), 0 0 18px var(--time-color);
             animation: flicker 3.5s infinite;
+        }
+        .time-display-glow {
+            text-shadow: 0 0 2px var(--time-color), 0 0 8px var(--time-color), 0 0 18px var(--time-color);
         }
         .time-display::before {
             content: '88:88';
@@ -96,7 +98,7 @@
                 <div class="flex items-center justify-between mb-2">
                     <div class="text-[10px] font-bold tracking-widest text-emerald-500 uppercase" id="mode-indicator">Connected</div>
                 </div>
-                <h2 class="time-display text-4xl sm:text-6xl font-bold mb-2 truncate" id="display-title">00:00</h2>
+                <h2 class="time-display time-display-glow text-4xl sm:text-6xl font-bold mb-2 truncate" id="display-title">00:00</h2>
             </div>
             
             <div class="w-full">
