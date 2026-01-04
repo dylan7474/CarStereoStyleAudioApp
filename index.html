@@ -36,7 +36,7 @@
         }
     </style>
 </head>
-<body class="h-screen flex flex-col overflow-hidden p-4 sm:p-6">
+<body class="h-screen flex flex-col overflow-x-hidden overflow-y-auto sm:overflow-hidden p-4 sm:p-6">
 
     <header class="flex justify-between items-center mb-6">
         <div>
@@ -50,15 +50,15 @@
     </header>
 
     <main id="view-player" class="flex-1 flex flex-col gap-6">
-        <div class="flex-1 glass-card lcd-display flex flex-col justify-between relative overflow-hidden">
-            <div class="p-8">
+        <div class="flex-none h-56 sm:h-auto sm:flex-1 glass-card lcd-display flex flex-col justify-between relative overflow-hidden">
+            <div class="p-4 sm:p-8">
                 <div class="mb-2 text-[10px] font-bold tracking-widest text-emerald-500 uppercase" id="mode-indicator">Connected</div>
-                <h2 class="text-4xl sm:text-5xl font-bold mb-2 tracking-tight truncate" id="display-title">Ready</h2>
-                <p class="text-lg opacity-40 font-light truncate" id="display-subtitle">Select source</p>
+                <h2 class="text-3xl sm:text-5xl font-bold mb-2 tracking-tight truncate" id="display-title">Ready</h2>
+                <p class="text-base sm:text-lg opacity-40 font-light truncate" id="display-subtitle">Select source</p>
             </div>
             
             <div class="w-full">
-                <div class="flex justify-between px-8 text-[11px] mb-2 font-semibold opacity-60">
+                <div class="flex justify-between px-4 sm:px-8 text-[11px] mb-2 font-semibold opacity-60">
                     <span id="current-time">00:00</span>
                     <span id="duration">00:00</span>
                 </div>
