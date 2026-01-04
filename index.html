@@ -3,13 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CarStereo AudioPlayer v2.2</title>
+    <title>CarStereo AudioPlayer v2.3</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background-color: #050505; color: #10b981; font-family: 'Courier New', Courier, monospace; }
         .lcd-glow { text-shadow: 0 0 10px rgba(16, 185, 129, 0.5); }
-        .preset-btn { transition: all 0.2s; border: 2px solid #064e3b; background: #0a0a0a; }
+        .preset-btn { transition: all 0.2s; border: 2px solid #064e3b; background: #0a0a0a; position: relative; overflow: hidden; }
         .preset-btn:active { background: #10b981; color: #000; transform: scale(0.95); }
+        .preset-label { font-size: 0.6rem; position: absolute; bottom: 2px; left: 0; right: 0; opacity: 0.6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 4px; }
         input[type=range] { accent-color: #10b981; height: 12px; }
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-thumb { background: #064e3b; border-radius: 4px; }
@@ -18,7 +19,7 @@
 <body class="h-screen flex flex-col overflow-hidden">
 
     <header class="p-4 flex justify-between items-center border-b border-emerald-900/30">
-        <h1 class="text-xl font-bold tracking-tighter lcd-glow">CAR UNIT v2.2</h1>
+        <h1 class="text-xl font-bold tracking-tighter lcd-glow">CAR UNIT v2.3</h1>
         <div class="flex gap-4 text-xs">
             <button onclick="toggleView('library')" class="uppercase border border-emerald-900 px-3 py-1 rounded">Library</button>
             <button onclick="toggleView('logs')" class="uppercase border border-emerald-900 px-3 py-1 rounded">Logs</button>
@@ -41,12 +42,12 @@
         </div>
 
         <div class="grid grid-cols-3 gap-3">
-            <button onmousedown="handlePresetStart(1)" onmouseup="handlePresetEnd(1)" ontouchstart="handlePresetStart(1)" ontouchend="handlePresetEnd(1)" class="preset-btn h-16 rounded-xl text-2xl font-bold" id="btn-1">1</button>
-            <button onmousedown="handlePresetStart(2)" onmouseup="handlePresetEnd(2)" ontouchstart="handlePresetStart(2)" ontouchend="handlePresetEnd(2)" class="preset-btn h-16 rounded-xl text-2xl font-bold" id="btn-2">2</button>
-            <button onmousedown="handlePresetStart(3)" onmouseup="handlePresetEnd(3)" ontouchstart="handlePresetStart(3)" ontouchend="handlePresetEnd(3)" class="preset-btn h-16 rounded-xl text-2xl font-bold" id="btn-3">3</button>
-            <button onmousedown="handlePresetStart(4)" onmouseup="handlePresetEnd(4)" ontouchstart="handlePresetStart(4)" ontouchend="handlePresetEnd(4)" class="preset-btn h-16 rounded-xl text-2xl font-bold" id="btn-4">4</button>
-            <button onmousedown="handlePresetStart(5)" onmouseup="handlePresetEnd(5)" ontouchstart="handlePresetStart(5)" ontouchend="handlePresetEnd(5)" class="preset-btn h-16 rounded-xl text-2xl font-bold" id="btn-5">5</button>
-            <button onmousedown="handlePresetStart(6)" onmouseup="handlePresetEnd(6)" ontouchstart="handlePresetStart(6)" ontouchend="handlePresetEnd(6)" class="preset-btn h-16 rounded-xl text-2xl font-bold" id="btn-6">6</button>
+            <button onmousedown="handlePresetStart(1)" onmouseup="handlePresetEnd(1)" ontouchstart="handlePresetStart(1)" ontouchend="handlePresetEnd(1)" class="preset-btn h-16 rounded-xl text-2xl font-bold" id="btn-1">1<span class="preset-label" id="label-1"></span></button>
+            <button onmousedown="handlePresetStart(2)" onmouseup="handlePresetEnd(2)" ontouchstart="handlePresetStart(2)" ontouchend="handlePresetEnd(2)" class="preset-btn h-16 rounded-xl text-2xl font-bold" id="btn-2">2<span class="preset-label" id="label-2"></span></button>
+            <button onmousedown="handlePresetStart(3)" onmouseup="handlePresetEnd(3)" ontouchstart="handlePresetStart(3)" ontouchend="handlePresetEnd(3)" class="preset-btn h-16 rounded-xl text-2xl font-bold" id="btn-3">3<span class="preset-label" id="label-3"></span></button>
+            <button onmousedown="handlePresetStart(4)" onmouseup="handlePresetEnd(4)" ontouchstart="handlePresetStart(4)" ontouchend="handlePresetEnd(4)" class="preset-btn h-16 rounded-xl text-2xl font-bold" id="btn-4">4<span class="preset-label" id="label-4"></span></button>
+            <button onmousedown="handlePresetStart(5)" onmouseup="handlePresetEnd(5)" ontouchstart="handlePresetStart(5)" ontouchend="handlePresetEnd(5)" class="preset-btn h-16 rounded-xl text-2xl font-bold" id="btn-5">5<span class="preset-label" id="label-5"></span></button>
+            <button onmousedown="handlePresetStart(6)" onmouseup="handlePresetEnd(6)" ontouchstart="handlePresetStart(6)" ontouchend="handlePresetEnd(6)" class="preset-btn h-16 rounded-xl text-2xl font-bold" id="btn-6">6<span class="preset-label" id="label-6"></span></button>
         </div>
 
         <div class="h-28 flex gap-4 items-center">
@@ -74,7 +75,7 @@
 
     <div id="overlay-logs" class="fixed inset-0 bg-black z-50 p-6 hidden flex flex-col">
         <div class="flex justify-between items-center mb-4">
-            <h2 class="text-2xl font-bold">LOGS v2.2</h2>
+            <h2 class="text-2xl font-bold">LOGS v2.3</h2>
             <button onclick="toggleView('player')" class="text-3xl">✕</button>
         </div>
         <div id="log-content" class="flex-1 bg-zinc-900 border border-emerald-900 rounded p-4 font-mono text-xs overflow-y-auto text-emerald-600"></div>
@@ -106,10 +107,10 @@
     }
 
     async function scanServer() {
-        appendLog("Scanning v2.2: Fetching /books root...");
+        appendLog("Scanning v2.3: Checking /books...");
         try {
             const res = await fetch('./books/');
-            if (!res.ok) return appendLog("Error: /books not found.");
+            if (!res.ok) return appendLog("Error: /books not accessible.");
             const text = await res.text();
             const parser = new DOMParser();
             const doc = parser.parseFromString(text, 'text/html');
@@ -131,8 +132,9 @@
                 }
             }
             if (state.books["Library"].length === 0) delete state.books["Library"];
-            appendLog(`Scan Complete. Found ${Object.keys(state.books).length} categories.`);
+            appendLog(`Scan complete. Categories found: ${Object.keys(state.books).join(', ')}`);
             renderLibrary();
+            updatePresetLabels();
         } catch (e) { appendLog("Scan failed: " + e.message); }
     }
 
@@ -147,15 +149,20 @@
     }
 
     function playBook(bookName, trackIdx) {
-        const track = state.books[bookName][trackIdx];
+        const tracks = state.books[bookName];
+        if (!tracks || !tracks[trackIdx]) return appendLog(`Error: Track ${trackIdx} not found in ${bookName}`);
+        
+        const track = tracks[trackIdx];
         state.currentSource = { type: 'book', data: { bookName, trackIdx, url: track.url, name: track.name } };
         audio.src = track.url;
         document.getElementById('display-title').textContent = track.name.toUpperCase();
         document.getElementById('display-subtitle').textContent = bookName.toUpperCase();
         document.getElementById('playback-info').style.opacity = "1";
+        
         const trackKey = `server:${track.url}`;
         if (state.playbackPositions[trackKey]) audio.currentTime = state.playbackPositions[trackKey];
-        audio.play();
+        
+        audio.play().catch(e => appendLog("Audio Error: " + e.message));
         toggleView('player');
     }
 
@@ -164,26 +171,51 @@
         state.longPressTimer = setTimeout(() => {
             if (state.currentSource) {
                 state.presets[id] = state.currentSource;
-                sync('POST', { presets: state.presets, radioStations: state.radioStations, playbackPositions: state.playbackPositions });
-                document.getElementById(`btn-${id}`).classList.add('bg-emerald-400', 'text-black');
-                setTimeout(() => document.getElementById(`btn-${id}`).classList.remove('bg-emerald-400', 'text-black'), 500);
-                appendLog(`Saved to P${id}`);
+                saveAllData();
+                const btn = document.getElementById(`btn-${id}`);
+                btn.classList.add('bg-emerald-400', 'text-black');
+                setTimeout(() => btn.classList.remove('bg-emerald-400', 'text-black'), 500);
+                appendLog(`Preset ${id} assigned to ${state.currentSource.type === 'radio' ? state.currentSource.data.name : state.currentSource.data.name}`);
+                updatePresetLabels();
                 state.isHolding = true;
+            } else {
+                appendLog("Play a source first to assign it to a preset.");
             }
         }, 1000);
     }
 
     function handlePresetEnd(id) {
         clearTimeout(state.longPressTimer);
-        if (!state.isHolding && state.presets[id]) {
+        if (!state.isHolding) {
             const p = state.presets[id];
-            p.type === 'radio' ? playRadio(p.data) : playBook(p.data.bookName, p.data.trackIdx);
+            if (p) {
+                appendLog(`Tuning Preset ${id}...`);
+                p.type === 'radio' ? playRadio(p.data) : playBook(p.data.bookName, p.data.trackIdx);
+            } else {
+                appendLog(`Preset ${id} is currently unassigned.`);
+            }
         }
+    }
+
+    function updatePresetLabels() {
+        for (let i = 1; i <= 6; i++) {
+            const label = document.getElementById(`label-${i}`);
+            const p = state.presets[i];
+            if (p) {
+                label.textContent = p.type === 'radio' ? p.data.name : p.data.name;
+            } else {
+                label.textContent = "";
+            }
+        }
+    }
+
+    function saveAllData() {
+        sync('POST', { presets: state.presets, radioStations: state.radioStations, playbackPositions: state.playbackPositions });
     }
 
     function renderLibrary() {
         const container = document.getElementById('library-content');
-        container.innerHTML = '<h3 class="text-emerald-500 font-bold border-b border-emerald-900 pb-2">RADIO</h3>';
+        container.innerHTML = '<h3 class="text-emerald-500 font-bold border-b border-emerald-900 pb-2">RADIO STATIONS</h3>';
         state.radioStations.forEach(s => {
             const div = document.createElement('div');
             div.className = "flex justify-between items-center bg-zinc-900 p-3 rounded-lg border border-zinc-800";
@@ -215,19 +247,21 @@
         const u = document.getElementById('radio-url').value;
         if (n && u) { 
             state.radioStations.push({ name: n, url: u }); 
-            sync('POST', { presets: state.presets, radioStations: state.radioStations, playbackPositions: state.playbackPositions }); 
+            saveAllData(); 
             renderLibrary(); 
+            appendLog(`Added Radio Station: ${n}`);
         }
     }
 
     audio.ontimeupdate = () => {
-        document.getElementById('seek-bar').value = audio.currentTime;
-        document.getElementById('seek-bar').max = audio.duration || 0;
+        const bar = document.getElementById('seek-bar');
+        bar.value = audio.currentTime;
+        bar.max = audio.duration || 0;
         document.getElementById('current-time').textContent = formatTime(audio.currentTime);
         document.getElementById('duration').textContent = formatTime(audio.duration);
         if (state.currentSource?.type === 'book' && Math.floor(audio.currentTime) % 15 === 0) {
             state.playbackPositions[`server:${state.currentSource.data.url}`] = audio.currentTime;
-            sync('POST', { presets: state.presets, radioStations: state.radioStations, playbackPositions: state.playbackPositions });
+            saveAllData();
         }
     };
 
@@ -236,10 +270,15 @@
     document.getElementById('seek-bar').oninput = (e) => audio.currentTime = e.target.value;
 
     async function init() {
-        appendLog("System Init v2.2");
+        appendLog("Car Stereo Init v2.3");
         const data = await sync('GET');
-        if (data) { state.presets = data.presets || {}; state.radioStations = data.radioStations || []; state.playbackPositions = data.playbackPositions || {}; }
+        if (data) { 
+            state.presets = data.presets || {}; 
+            state.radioStations = data.radioStations || []; 
+            state.playbackPositions = data.playbackPositions || {}; 
+        }
         await scanServer();
+        updatePresetLabels();
     }
     init();
 </script>
