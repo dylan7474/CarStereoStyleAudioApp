@@ -8,6 +8,7 @@
 - Keep changes minimal and focused per request.
 - Prefer semantic, descriptive text for user-facing content.
 - When editing UI, check for layout regressions in common desktop widths.
+- Update README feature summaries when UX changes are introduced.
 
 ## Testing
 - There are no automated tests yet. Note this in your final response if none were run.
