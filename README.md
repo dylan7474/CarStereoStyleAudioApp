@@ -2,14 +2,6 @@
 
 CarStereoStyleAudioApp is a lightweight web app that presents a car-stereo-inspired audio interface. It provides a retro dashboard-style layout for browsing and controlling audio playback with clear, tactile-style controls.
 
-## Build on Linux
-
-This project uses a Makefile to build the static assets.
-
-```bash
-make
-```
-
 ## Basic Controls
 
 - **Play/Pause**: Toggle playback for the current track.
