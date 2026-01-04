@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CarStereo Infotainment v4.1</title>
+    <title>CarStereo Infotainment v4.2</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
@@ -40,7 +40,7 @@
 
     <header class="flex justify-between items-center mb-6">
         <div>
-            <h1 class="text-2xl font-bold tracking-tight">INFOTAINMENT <span class="text-emerald-500 font-light">4.1</span></h1>
+            <h1 class="text-2xl font-bold tracking-tight">INFOTAINMENT <span class="text-emerald-500 font-light">4.2</span></h1>
             <p class="text-[10px] uppercase tracking-[0.3em] opacity-40">System Unified & Stable</p>
         </div>
         <div class="flex gap-3">
@@ -120,6 +120,7 @@
 
 <script>
     const BOOKMARKS_ENDPOINT = './api/bookmarks';
+    const LIBRARY_CACHE_KEY = 'carstereo.libraryCache.v1';
     const USER_ID = new URLSearchParams(window.location.search).get('user') || 'default_stereo';
     let state = { presets: {}, radioStations: [], books: {}, currentSource: null, playbackPositions: {}, longPressTimer: null, isHolding: false, isManagerMode: false };
     let pendingResumeTime = 0;
@@ -133,6 +134,35 @@
     const defaultModeText = modeIndicator.textContent;
     const sleepDisplay = document.getElementById('sleep-timer-display');
     const defaultSleepText = sleepDisplay.textContent;
+    function showModeMessage(message, timeout = 3000) {
+        if (sleepEndTime) return;
+        modeIndicator.textContent = message;
+        setTimeout(() => {
+            if (!sleepEndTime) {
+                modeIndicator.textContent = defaultModeText;
+            }
+        }, timeout);
+    }
+
+    function loadCachedLibrary() {
+        try {
+            const cached = JSON.parse(localStorage.getItem(LIBRARY_CACHE_KEY));
+            if (cached && cached.books) {
+                state.books = cached.books;
+                return cached;
+            }
+        } catch (e) {
+            return null;
+        }
+        return null;
+    }
+
+    function saveCachedLibrary() {
+        localStorage.setItem(LIBRARY_CACHE_KEY, JSON.stringify({
+            books: state.books,
+            cachedAt: new Date().toISOString()
+        }));
+    }
 
     // UI Sync for Play/Pause Button
     audio.addEventListener('play', () => { document.getElementById('play-btn').textContent = '||'; });
@@ -377,28 +407,46 @@
     async function init() {
         const data = await sync('GET');
         if (data) { Object.assign(state, data); }
-        const res = await fetch('./books/');
-        if (res.ok) {
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(await res.text(), 'text/html');
-            const links = Array.from(doc.querySelectorAll('a'))
-                .map(a => a.getAttribute('href'))
-                .filter(h => h && !h.startsWith('?') && !h.startsWith('/'));
-            for (const link of links) {
-                if (link.endsWith('/')) {
-                    const bookName = decodeURIComponent(link.replace(/\/$/, ''));
-                    const folderRes = await fetch(`./books/${link}`);
-                    if (!folderRes.ok) continue;
-                    const folderDoc = parser.parseFromString(await folderRes.text(), 'text/html');
-                    const tracks = Array.from(folderDoc.querySelectorAll('a'))
-                        .map(a => a.getAttribute('href'))
-                        .filter(h => h && h.toLowerCase().endsWith('.mp3'))
-                        .map(h => ({ name: decodeURIComponent(h), url: `./books/${link}${h}` }));
-                    if (tracks.length > 0) state.books[bookName] = tracks;
-                } else if (link.toLowerCase().endsWith('.mp3')) {
-                    const fn = decodeURIComponent(link);
-                    state.books[fn] = [{ name: fn, url: `./books/${link}` }];
+        const cachedLibrary = loadCachedLibrary();
+        let libraryFetched = false;
+        try {
+            const res = await fetch('./books/');
+            if (res.ok) {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(await res.text(), 'text/html');
+                const links = Array.from(doc.querySelectorAll('a'))
+                    .map(a => a.getAttribute('href'))
+                    .filter(h => h && !h.startsWith('?') && !h.startsWith('/'));
+                const latestBooks = {};
+                for (const link of links) {
+                    if (link.endsWith('/')) {
+                        const bookName = decodeURIComponent(link.replace(/\/$/, ''));
+                        const folderRes = await fetch(`./books/${link}`);
+                        if (!folderRes.ok) continue;
+                        const folderDoc = parser.parseFromString(await folderRes.text(), 'text/html');
+                        const tracks = Array.from(folderDoc.querySelectorAll('a'))
+                            .map(a => a.getAttribute('href'))
+                            .filter(h => h && h.toLowerCase().endsWith('.mp3'))
+                            .map(h => ({ name: decodeURIComponent(h), url: `./books/${link}${h}` }));
+                        if (tracks.length > 0) latestBooks[bookName] = tracks;
+                    } else if (link.toLowerCase().endsWith('.mp3')) {
+                        const fn = decodeURIComponent(link);
+                        latestBooks[fn] = [{ name: fn, url: `./books/${link}` }];
+                    }
                 }
+                state.books = latestBooks;
+                saveCachedLibrary();
+                libraryFetched = true;
+                showModeMessage('LIBRARY SYNCED');
+            }
+        } catch (e) {
+            libraryFetched = false;
+        }
+        if (!libraryFetched) {
+            if (cachedLibrary) {
+                showModeMessage('OFFLINE CACHE');
+            } else {
+                showModeMessage('OFFLINE MODE');
             }
         }
         updatePresetLabels();

@@ -15,6 +15,7 @@ CarStereoStyleAudioApp is a lightweight web app that presents a car-stereo-inspi
 - Mobile-friendly player controls now stay visible with a compact layout.
 - The library info panel collapses on smaller screens for easier browsing.
 - Sleep timer displays a live countdown when active.
+- Offline-first library browsing now uses cached metadata when connectivity drops.
 
 ## Improvement Ideas
 
@@ -26,4 +27,3 @@ CarStereoStyleAudioApp is a lightweight web app that presents a car-stereo-inspi
 ## Roadmap
 
 - Theme presets to mimic different classic head units.
-- Offline-first support with cached library metadata.
