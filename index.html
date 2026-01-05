@@ -77,12 +77,12 @@
     </header>
 
     <main id="view-player" class="flex-1 flex flex-col gap-6">
-        <div class="flex-none h-28 sm:h-auto sm:flex-1 glass-card lcd-display flex flex-col justify-between relative overflow-hidden">
+        <div class="flex-none min-h-[7rem] sm:h-auto sm:flex-1 glass-card lcd-display flex flex-col justify-between relative overflow-hidden">
             <div class="p-4 sm:p-8">
                 <div class="flex items-center justify-between mb-2">
                     <div class="text-[10px] font-bold tracking-widest text-emerald-500 uppercase" id="mode-indicator">Connected</div>
                 </div>
-                <div class="flex flex-wrap items-baseline gap-6">
+                <div class="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-baseline gap-2 sm:gap-6">
                     <h2 class="time-display time-display-glow text-4xl sm:text-6xl font-bold mb-2 truncate" id="display-title">00:00</h2>
                     <div id="sleep-timer-display" class="time-display time-display-glow text-4xl sm:text-6xl font-bold uppercase tracking-widest mb-2">Sleep: Off</div>
                 </div>
@@ -444,7 +444,6 @@
         const minutes = Math.floor(remainingSeconds / 60);
         const seconds = remainingSeconds % 60;
         const remainingLabel = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-        modeIndicator.textContent = `SLEEP: ${remainingLabel}`;
         sleepDisplay.textContent = `Sleep: ${remainingLabel}`;
         if (remainingMs === 0) endSleepTimer();
     }
@@ -456,11 +455,9 @@
         sleepIntervalId = null;
         sleepEndTime = null;
         audio.pause();
-        modeIndicator.textContent = 'SLEEP TIMER ENDED';
         sleepDisplay.textContent = 'Sleep: Ended';
         setTimeout(() => {
             if (!sleepEndTime) {
-                modeIndicator.textContent = defaultModeText;
                 sleepDisplay.textContent = defaultSleepText;
             }
         }, 3000);
