@@ -9,15 +9,27 @@
     <link href="https://fonts.cdnfonts.com/css/dseg7-classic" rel="stylesheet">
     <style>
         :root { 
-            --bg: #0a0c10; --text: #e2e8f0; --accent: #10b981; --time-color: #f59e0b;
+            --bg: #0a0c10; --bg-glow: #1e293b; --text: #e2e8f0; --accent: #10b981; --time-color: #f59e0b;
             --panel: rgba(30, 41, 59, 0.5); --glass: rgba(255, 255, 255, 0.03);
         }
         .day-mode { 
-            --bg: #f8fafc; --text: #1e293b; --accent: #059669; --time-color: #d97706;
+            --bg: #f8fafc; --bg-glow: #cbd5f5; --text: #1e293b; --accent: #059669; --time-color: #d97706;
             --panel: rgba(226, 232, 240, 0.8); --glass: rgba(0, 0, 0, 0.05);
         }
+        body[data-theme="amber"] {
+            --bg: #140b05; --bg-glow: #7c2d12; --text: #fff7ed; --accent: #f97316; --time-color: #fbbf24;
+            --panel: rgba(69, 26, 3, 0.7); --glass: rgba(255, 255, 255, 0.05);
+        }
+        body[data-theme="ice"] {
+            --bg: #0b1120; --bg-glow: #1e3a8a; --text: #e0f2fe; --accent: #38bdf8; --time-color: #93c5fd;
+            --panel: rgba(15, 23, 42, 0.75); --glass: rgba(56, 189, 248, 0.08);
+        }
+        body[data-theme="sunset"] {
+            --bg: #1b0c24; --bg-glow: #7c3aed; --text: #fdf2f8; --accent: #ec4899; --time-color: #f472b6;
+            --panel: rgba(55, 24, 84, 0.7); --glass: rgba(236, 72, 153, 0.08);
+        }
         body { 
-            background: radial-gradient(circle at top right, #1e293b, var(--bg)); 
+            background: radial-gradient(circle at top right, var(--bg-glow), var(--bg)); 
             color: var(--text); font-family: 'Inter', sans-serif; transition: all 0.5s ease; 
         }
         .glass-card { background: var(--panel); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1); border-radius: 2rem; }
@@ -44,6 +56,21 @@
         .time-display-glow {
             text-shadow: 0 0 3px rgba(245, 158, 11, 0.5), 0 0 10px rgba(245, 158, 11, 0.35);
         }
+        .style-btn { 
+            border-radius: 999px; 
+            border: 1px solid rgba(255,255,255,0.08); 
+            padding: 0.35rem 0.85rem; 
+            font-size: 0.65rem; 
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            background: rgba(255,255,255,0.04);
+        }
+        .style-btn.style-active {
+            background: var(--accent);
+            color: #050505;
+            box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 65%, transparent);
+            border-color: transparent;
+        }
         
         
         input[type=range].seek-bar { 
@@ -62,22 +89,73 @@
             height: 100%;
             margin: 0;
         }
+        @media (min-width: 768px) {
+            body[data-layout="split"] #view-player {
+                display: grid;
+                grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+                align-items: stretch;
+            }
+            body[data-layout="split"] #control-panel {
+                padding: 0;
+                display: grid;
+                grid-template-rows: auto auto auto 1fr;
+            }
+            body[data-layout="split"] #control-panel [data-section="presets"] {
+                align-self: stretch;
+            }
+            body[data-layout="compact"] #view-player {
+                gap: 1rem;
+            }
+            body[data-layout="compact"] #control-panel {
+                gap: 1rem;
+            }
+            body[data-layout="compact"] .preset-btn {
+                height: 4.5rem;
+            }
+            body[data-layout="compact"] #sleep-timer-display,
+            body[data-layout="compact"] #display-title {
+                font-size: 2.25rem;
+            }
+        }
     </style>
 </head>
 <body class="h-screen flex flex-col overflow-hidden p-4 sm:p-6">
 
-    <header class="flex justify-between items-center mb-6">
+    <header class="flex flex-col gap-4 mb-6 sm:flex-row sm:justify-between sm:items-center">
         <div>
             <h1 class="text-2xl font-bold tracking-tight">INFOTAINMENT <span class="text-emerald-500 font-light">4.3</span></h1>
+            <p class="text-xs uppercase tracking-[0.35em] opacity-60">Style selector</p>
         </div>
-        <div class="flex gap-3">
+        <div class="flex flex-wrap gap-3 items-center justify-between sm:justify-end">
             <button onclick="toggleDayMode()" class="p-3 rounded-full bg-white/5 border border-white/10">☀️</button>
             <button onclick="toggleView('library')" class="px-6 py-2 rounded-2xl font-bold bg-emerald-500 text-black active:scale-95 transition-transform">LIBRARY</button>
         </div>
     </header>
 
+    <section class="glass-card p-4 sm:p-5 mb-6">
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div class="flex flex-col gap-2">
+                <span class="text-[10px] font-black opacity-50 tracking-[0.4em] uppercase">Layouts</span>
+                <div class="flex flex-wrap gap-2" id="layout-selector">
+                    <button class="style-btn" data-layout="classic">Classic Stack</button>
+                    <button class="style-btn" data-layout="split">Split Console</button>
+                    <button class="style-btn" data-layout="compact">Compact Dash</button>
+                </div>
+            </div>
+            <div class="flex flex-col gap-2">
+                <span class="text-[10px] font-black opacity-50 tracking-[0.4em] uppercase">Themes</span>
+                <div class="flex flex-wrap gap-2" id="theme-selector">
+                    <button class="style-btn" data-theme="emerald">Emerald Glow</button>
+                    <button class="style-btn" data-theme="amber">Amber Night</button>
+                    <button class="style-btn" data-theme="ice">Ice Blue</button>
+                    <button class="style-btn" data-theme="sunset">Sunset Pulse</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <main id="view-player" class="flex-1 flex flex-col gap-6">
-        <div class="flex-none min-h-[7rem] sm:h-auto sm:flex-1 glass-card lcd-display flex flex-col justify-between relative overflow-hidden">
+        <div id="display-panel" class="flex-none min-h-[7rem] sm:h-auto sm:flex-1 glass-card lcd-display flex flex-col justify-between relative overflow-hidden">
             <div class="p-4 sm:p-8">
                 <div class="flex items-center justify-between mb-2">
                     <div class="text-[10px] font-bold tracking-widest text-emerald-500 uppercase" id="mode-indicator">Connected</div>
@@ -96,22 +174,22 @@
             </div>
         </div>
 
-        <div class="flex flex-col gap-6 px-2">
-            <div class="sm:hidden flex flex-col gap-3">
+        <div id="control-panel" class="flex flex-col gap-6 px-2">
+            <div class="panel-section sm:hidden flex flex-col gap-3" data-section="progress">
                 <span class="text-[10px] font-black opacity-30 tracking-tighter">PROGRESS</span>
                 <input type="range" id="seek-bar-mobile" class="seek-bar" value="0" step="1">
             </div>
 
-            <div class="hidden sm:flex items-center gap-6">
+            <div class="panel-section hidden sm:flex items-center gap-6" data-section="volume">
                 <span class="text-[10px] font-black opacity-30 tracking-tighter">VOL</span>
                 <input type="range" id="vol-control" class="vol-control" min="0" max="1" step="0.05" value="1">
             </div>
 
-            <div class="grid grid-cols-2 gap-3">
+            <div class="panel-section grid grid-cols-2 gap-3" data-section="sleep">
                 <button onclick="setSleepTimer(15)" class="glass-card bg-white/5 py-3 text-xs font-semibold tracking-wide uppercase active:scale-95 transition-transform">Sleep in 15 mins</button>
                 <button onclick="setSleepTimer(30)" class="glass-card bg-white/5 py-3 text-xs font-semibold tracking-wide uppercase active:scale-95 transition-transform">Sleep in 30 mins</button>
             </div>
-            <div class="grid grid-cols-3 sm:grid-cols-6 gap-3">
+            <div class="panel-section grid grid-cols-3 sm:grid-cols-6 gap-3" data-section="presets">
                 <button onpointerdown="handlePresetStart(1)" onpointerup="handlePresetEnd(1)" onpointercancel="handlePresetCancel()" onpointerleave="handlePresetCancel()" class="preset-btn h-20 flex flex-col items-center justify-center gap-1" id="btn-1"><span class="text-xl font-bold">1</span><span class="preset-label truncate w-full px-2" id="label-1"></span></button>
                 <button onpointerdown="handlePresetStart(2)" onpointerup="handlePresetEnd(2)" onpointercancel="handlePresetCancel()" onpointerleave="handlePresetCancel()" class="preset-btn h-20 flex flex-col items-center justify-center gap-1" id="btn-2"><span class="text-xl font-bold">2</span><span class="preset-label truncate w-full px-2" id="label-2"></span></button>
                 <button onpointerdown="handlePresetStart(3)" onpointerup="handlePresetEnd(3)" onpointercancel="handlePresetCancel()" onpointerleave="handlePresetCancel()" class="preset-btn h-20 flex flex-col items-center justify-center gap-1" id="btn-3"><span class="text-xl font-bold">3</span><span class="preset-label truncate w-full px-2" id="label-3"></span></button>
@@ -120,7 +198,7 @@
                 <button onpointerdown="handlePresetStart(6)" onpointerup="handlePresetEnd(6)" onpointercancel="handlePresetCancel()" onpointerleave="handlePresetCancel()" class="preset-btn h-20 flex flex-col items-center justify-center gap-1" id="btn-6"><span class="text-xl font-bold">6</span><span class="preset-label truncate w-full px-2" id="label-6"></span></button>
             </div>
 
-            <div class="flex gap-4 h-24 items-stretch">
+            <div class="panel-section flex gap-4 h-24 items-stretch" data-section="transport">
                 <div class="flex flex-1 gap-4">
                     <button onclick="smartSeek(-15)" class="flex-1 glass-card bg-white/5 text-3xl active:scale-95 transition-transform">⏮</button>
                     <button onclick="togglePlay()" id="play-btn" class="w-1/3 glass-card bg-emerald-500 text-black text-4xl shadow-xl active:scale-95 transition-transform">▶</button>
@@ -161,6 +239,8 @@
     const BOOKMARKS_ENDPOINT = './api/bookmarks';
     const LIBRARY_CACHE_KEY = 'carstereo.libraryCache.v1';
     const USER_ID = new URLSearchParams(window.location.search).get('user') || 'default_stereo';
+    const THEME_KEY = 'carstereo.theme';
+    const LAYOUT_KEY = 'carstereo.layout';
     let state = { presets: {}, radioStations: [], books: {}, currentSource: null, playbackPositions: {}, longPressTimer: null, isHolding: false, isManagerMode: false };
     let pendingResumeTime = 0;
     let isDragging = false;
@@ -175,6 +255,8 @@
     const sleepDisplay = document.getElementById('sleep-timer-display');
     const defaultSleepText = sleepDisplay.textContent;
     const timeDisplay = document.getElementById('display-title');
+    const themeButtons = Array.from(document.querySelectorAll('[data-theme]'));
+    const layoutButtons = Array.from(document.querySelectorAll('[data-layout]'));
     function showModeMessage(message, timeout = 3000) {
         if (sleepEndTime) return;
         modeIndicator.textContent = message;
@@ -436,6 +518,21 @@
     function togglePlay() { audio.paused ? audio.play() : audio.pause(); }
     function toggleDayMode() { document.body.classList.toggle('day-mode'); }
     function smartSeek(s) { if (!audio.src || isNaN(audio.duration)) return; audio.currentTime = Math.max(0, Math.min(audio.currentTime + s, audio.duration)); savePosition(); }
+    function applyTheme(theme) {
+        if (theme === 'emerald') {
+            document.body.removeAttribute('data-theme');
+        } else {
+            document.body.setAttribute('data-theme', theme);
+        }
+        localStorage.setItem(THEME_KEY, theme);
+        themeButtons.forEach((btn) => btn.classList.toggle('style-active', btn.dataset.theme === theme));
+    }
+
+    function applyLayout(layout) {
+        document.body.setAttribute('data-layout', layout);
+        localStorage.setItem(LAYOUT_KEY, layout);
+        layoutButtons.forEach((btn) => btn.classList.toggle('style-active', btn.dataset.layout === layout));
+    }
 
     function updateSleepIndicator() {
         if (!sleepEndTime) return;
@@ -473,6 +570,12 @@
     }
 
     async function init() {
+        const storedTheme = localStorage.getItem(THEME_KEY) || 'emerald';
+        const storedLayout = localStorage.getItem(LAYOUT_KEY) || 'classic';
+        applyTheme(storedTheme);
+        applyLayout(storedLayout);
+        themeButtons.forEach((btn) => btn.addEventListener('click', () => applyTheme(btn.dataset.theme)));
+        layoutButtons.forEach((btn) => btn.addEventListener('click', () => applyLayout(btn.dataset.layout)));
         const data = await sync('GET');
         if (data) { Object.assign(state, data); }
         const cachedLibrary = loadCachedLibrary();
