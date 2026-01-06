@@ -117,6 +117,53 @@
                 font-size: 2.25rem;
             }
         }
+        @media (max-width: 767px) {
+            body[data-layout="split"] #view-player {
+                gap: 1rem;
+            }
+            body[data-layout="split"] #display-panel {
+                min-height: 6rem;
+            }
+            body[data-layout="split"] #control-panel {
+                gap: 0.75rem;
+            }
+            body[data-layout="split"] #control-panel [data-section="transport"] {
+                order: 1;
+            }
+            body[data-layout="split"] #control-panel [data-section="progress"] {
+                order: 2;
+            }
+            body[data-layout="split"] #control-panel [data-section="sleep"] {
+                order: 3;
+            }
+            body[data-layout="split"] #control-panel [data-section="presets"] {
+                order: 4;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+            body[data-layout="split"] .preset-btn {
+                height: 5rem;
+            }
+            body[data-layout="compact"] #view-player {
+                gap: 0.75rem;
+            }
+            body[data-layout="compact"] #display-panel {
+                min-height: 5rem;
+            }
+            body[data-layout="compact"] #control-panel {
+                gap: 0.75rem;
+            }
+            body[data-layout="compact"] #control-panel [data-section="presets"] {
+                display: flex;
+                overflow-x: auto;
+                padding-bottom: 0.5rem;
+                scroll-snap-type: x mandatory;
+            }
+            body[data-layout="compact"] #control-panel [data-section="presets"] .preset-btn {
+                min-width: 5.25rem;
+                height: 4.5rem;
+                scroll-snap-align: start;
+            }
+        }
     </style>
 </head>
 <body class="h-screen flex flex-col overflow-hidden p-4 sm:p-6">
