@@ -147,7 +147,7 @@ EOF
 cat <<EOF > Dockerfile
 FROM node:20-slim
 WORKDIR /app
-COPY server.js index.html ./
+COPY server.js index.html legacy.html ./
 RUN mkdir books data && chown -R $SERVICE_UID:$SERVICE_GID /app
 USER $SERVICE_UID
 EXPOSE $PORT_ARG
