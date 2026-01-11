@@ -22,6 +22,7 @@ CarStereoStyleAudioApp is a lightweight web app that presents a car-stereo-inspi
 - Progress time readouts now prioritize contrast and spacing for better legibility.
 - Sleep timer readout now stacks cleanly with the main progress time on phones without duplicating the small status line.
 - Added a legacy-friendly `legacy.html` page for older browsers without modern CSS/JS features.
+- Tuned legacy playback controls to behave more reliably on older Safari hardware.
 
 ## Improvement Ideas
 
