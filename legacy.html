@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CarStereo Infotainment (Legacy)</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #0a0c10;
+            color: #e2e8f0;
+        }
+        body.day-mode {
+            background: #f8fafc;
+            color: #1e293b;
+        }
+        .container {
+            padding: 16px;
+        }
+        .header {
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+        .header h1 {
+            float: left;
+            font-size: 20px;
+            margin: 0;
+        }
+        .header-actions {
+            float: right;
+        }
+        .button {
+            display: inline-block;
+            padding: 10px 14px;
+            margin-left: 8px;
+            background: #10b981;
+            color: #0a0c10;
+            border: none;
+            border-radius: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .button.alt {
+            background: #1f2937;
+            color: #e2e8f0;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+        .button.warn {
+            background: #ef4444;
+            color: #fff;
+        }
+        .panel {
+            background: rgba(30, 41, 59, 0.6);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        body.day-mode .panel {
+            background: rgba(226, 232, 240, 0.9);
+        }
+        .display {
+            font-size: 28px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            margin-bottom: 8px;
+        }
+        .status {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #10b981;
+        }
+        body.day-mode .status {
+            color: #047857;
+        }
+        .seek-row {
+            margin-top: 12px;
+        }
+        .seek-row input[type=range] {
+            width: 100%;
+        }
+        .controls {
+            overflow: hidden;
+            margin-bottom: 12px;
+        }
+        .controls .button {
+            width: 30%;
+            text-align: center;
+        }
+        .controls .button.main {
+            background: #10b981;
+            color: #0a0c10;
+        }
+        .controls .button.alt {
+            background: #1f2937;
+        }
+        .volume-row {
+            margin-top: 12px;
+        }
+        .grid {
+            overflow: hidden;
+        }
+        .grid button {
+            width: 30%;
+            margin: 5px 1.5%;
+        }
+        .preset-active {
+            box-shadow: 0 0 10px #10b981;
+        }
+        .library-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(10, 12, 16, 0.98);
+            padding: 16px;
+            display: none;
+            overflow-y: auto;
+            z-index: 100;
+        }
+        .library-entry {
+            margin-bottom: 12px;
+            padding: 12px;
+            border-radius: 10px;
+            background: rgba(30, 41, 59, 0.6);
+        }
+        .library-entry h3 {
+            margin: 0 0 8px;
+            font-size: 16px;
+        }
+        .library-entry .button {
+            padding: 8px 10px;
+            font-size: 12px;
+        }
+        .label {
+            display: block;
+            font-size: 11px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            opacity: 0.6;
+            margin-bottom: 4px;
+        }
+        .input {
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: #0f172a;
+            color: #e2e8f0;
+        }
+        body.day-mode .input {
+            background: #fff;
+            color: #1e293b;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>INFOTAINMENT LEGACY</h1>
+            <div class="header-actions">
+                <button class="button alt" id="day-mode-btn">☀️</button>
+                <button class="button" id="library-btn">LIBRARY</button>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="status" id="mode-indicator">Connected</div>
+            <div class="display" id="display-title">00:00</div>
+            <div class="display" id="sleep-timer-display">Sleep: Off</div>
+            <div class="seek-row">
+                <span class="label">Progress</span>
+                <input type="range" id="seek-bar" value="0" step="1">
+                <div class="label" id="duration">00:00</div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="controls">
+                <button class="button alt" id="prev-btn">⏮</button>
+                <button class="button main" id="play-btn">▶</button>
+                <button class="button alt" id="next-btn">⏭</button>
+            </div>
+            <div class="volume-row">
+                <span class="label">Volume</span>
+                <input type="range" id="vol-control" min="0" max="1" step="0.05" value="1">
+            </div>
+        </div>
+
+        <div class="panel">
+            <span class="label">Sleep Timer</span>
+            <button class="button alt" id="sleep-15">Sleep in 15 mins</button>
+            <button class="button alt" id="sleep-30">Sleep in 30 mins</button>
+        </div>
+
+        <div class="panel">
+            <span class="label">Presets</span>
+            <div class="grid" id="preset-grid">
+                <button class="button alt" data-preset="1">Preset 1</button>
+                <button class="button alt" data-preset="2">Preset 2</button>
+                <button class="button alt" data-preset="3">Preset 3</button>
+                <button class="button alt" data-preset="4">Preset 4</button>
+                <button class="button alt" data-preset="5">Preset 5</button>
+                <button class="button alt" data-preset="6">Preset 6</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="library-overlay" id="overlay-library">
+        <div class="header">
+            <h1>Media Explorer</h1>
+            <div class="header-actions">
+                <button class="button alt" id="manager-btn">Manage Radio</button>
+                <button class="button warn" id="exit-btn">Exit</button>
+            </div>
+        </div>
+        <div class="panel">
+            <span class="label">Search</span>
+            <input type="text" id="lib-search" class="input" placeholder="Search library...">
+        </div>
+        <div id="library-content"></div>
+        <div class="panel">
+            <button class="button alt" id="toggle-radio-form">Add Radio Station (+)</button>
+            <div id="radio-form" style="display:none; margin-top:12px;">
+                <input type="text" id="radio-name" class="input" placeholder="Name" style="margin-bottom:8px;">
+                <input type="text" id="radio-url" class="input" placeholder="URL" style="margin-bottom:8px;">
+                <button class="button" id="save-station">Save Station</button>
+            </div>
+        </div>
+    </div>
+
+    <audio id="audio-player"></audio>
+
+<script>
+    var BOOKMARKS_ENDPOINT = './api/bookmarks';
+    var LIBRARY_CACHE_KEY = 'carstereo.libraryCache.v1';
+    var USER_ID = getQueryParam('user') || 'default_stereo';
+
+    var state = {
+        presets: {},
+        radioStations: [],
+        books: {},
+        currentSource: null,
+        playbackPositions: {},
+        longPressTimer: null,
+        isHolding: false,
+        isManagerMode: false
+    };
+
+    var pendingResumeTime = 0;
+    var isDragging = false;
+    var sleepTimerId = null;
+    var sleepIntervalId = null;
+    var sleepEndTime = null;
+
+    var audio = document.getElementById('audio-player');
+    var seekBar = document.getElementById('seek-bar');
+    var volumeControl = document.getElementById('vol-control');
+    var modeIndicator = document.getElementById('mode-indicator');
+    var defaultModeText = modeIndicator.textContent;
+    var sleepDisplay = document.getElementById('sleep-timer-display');
+    var defaultSleepText = sleepDisplay.textContent;
+    var timeDisplay = document.getElementById('display-title');
+
+    function getQueryParam(name) {
+        var match = new RegExp('[?&]' + name + '=([^&]+)').exec(window.location.search);
+        return match ? decodeURIComponent(match[1].replace(/\+/g, ' ')) : null;
+    }
+
+    function endsWith(str, suffix) {
+        return str.substring(str.length - suffix.length) === suffix;
+    }
+
+    function showModeMessage(message, timeout) {
+        if (sleepEndTime) return;
+        modeIndicator.textContent = message;
+        setTimeout(function () {
+            if (!sleepEndTime) {
+                modeIndicator.textContent = defaultModeText;
+            }
+        }, timeout || 3000);
+    }
+
+    function loadCachedLibrary() {
+        try {
+            var cached = JSON.parse(localStorage.getItem(LIBRARY_CACHE_KEY));
+            if (cached && cached.books) {
+                state.books = cached.books;
+                return cached;
+            }
+        } catch (e) {
+            return null;
+        }
+        return null;
+    }
+
+    function saveCachedLibrary() {
+        localStorage.setItem(LIBRARY_CACHE_KEY, JSON.stringify({
+            books: state.books,
+            cachedAt: new Date().toISOString()
+        }));
+    }
+
+    function request(method, url, body, callback) {
+        var xhr = new XMLHttpRequest();
+        xhr.open(method, url, true);
+        if (body) {
+            xhr.setRequestHeader('Content-Type', 'application/json');
+        }
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== 4) return;
+            if (xhr.status >= 200 && xhr.status < 300) {
+                callback(null, xhr.responseText);
+            } else {
+                callback(new Error('Request failed'));
+            }
+        };
+        xhr.send(body ? JSON.stringify(body) : null);
+    }
+
+    function sync(method, body, callback) {
+        var url = BOOKMARKS_ENDPOINT + '?user=' + encodeURIComponent(USER_ID);
+        request(method, url, body, function (err, res) {
+            if (err) {
+                callback(null);
+                return;
+            }
+            try {
+                callback(JSON.parse(res));
+            } catch (e) {
+                callback(null);
+            }
+        });
+    }
+
+    function updateCurrentTimeDisplay(value) {
+        var timeText = formatTime(value);
+        if (timeDisplay) timeDisplay.textContent = timeText;
+    }
+
+    function formatTime(seconds) {
+        if (isNaN(seconds)) return '00:00';
+        var m = Math.floor(seconds / 60);
+        var s = Math.floor(seconds % 60);
+        return pad(m) + ':' + pad(s);
+    }
+
+    function pad(value) {
+        return value < 10 ? '0' + value : '' + value;
+    }
+
+    function togglePlay() {
+        if (audio.paused) {
+            audio.play();
+        } else {
+            audio.pause();
+        }
+    }
+
+    function toggleDayMode() {
+        if (document.body.className.indexOf('day-mode') !== -1) {
+            document.body.className = document.body.className.replace('day-mode', '');
+        } else {
+            document.body.className += ' day-mode';
+        }
+    }
+
+    function smartSeek(amount) {
+        if (!audio.src || isNaN(audio.duration)) return;
+        audio.currentTime = Math.max(0, Math.min(audio.currentTime + amount, audio.duration));
+        savePosition();
+    }
+
+    function savePosition() {
+        if (state.currentSource && state.currentSource.type === 'book' && audio.currentTime > 1) {
+            state.playbackPositions['server:' + state.currentSource.data.url] = audio.currentTime;
+            sync('POST', state, function () {});
+        }
+    }
+
+    function updateSleepIndicator() {
+        if (!sleepEndTime) return;
+        var remainingMs = Math.max(0, sleepEndTime - new Date().getTime());
+        var remainingSeconds = Math.floor(remainingMs / 1000);
+        var minutes = Math.floor(remainingSeconds / 60);
+        var seconds = remainingSeconds % 60;
+        sleepDisplay.textContent = 'Sleep: ' + pad(minutes) + ':' + pad(seconds);
+        if (remainingMs === 0) endSleepTimer();
+    }
+
+    function endSleepTimer() {
+        if (sleepTimerId) clearTimeout(sleepTimerId);
+        if (sleepIntervalId) clearInterval(sleepIntervalId);
+        sleepTimerId = null;
+        sleepIntervalId = null;
+        sleepEndTime = null;
+        audio.pause();
+        sleepDisplay.textContent = 'Sleep: Ended';
+        setTimeout(function () {
+            if (!sleepEndTime) {
+                sleepDisplay.textContent = defaultSleepText;
+            }
+        }, 3000);
+    }
+
+    function setSleepTimer(minutes) {
+        if (sleepTimerId) clearTimeout(sleepTimerId);
+        if (sleepIntervalId) clearInterval(sleepIntervalId);
+        sleepEndTime = new Date().getTime() + minutes * 60 * 1000;
+        updateSleepIndicator();
+        sleepIntervalId = setInterval(updateSleepIndicator, 1000);
+        sleepTimerId = setTimeout(endSleepTimer, minutes * 60 * 1000);
+    }
+
+    function toggleView(showLibrary) {
+        var overlay = document.getElementById('overlay-library');
+        overlay.style.display = showLibrary ? 'block' : 'none';
+        if (showLibrary) renderLibrary();
+    }
+
+    function toggleManager() {
+        state.isManagerMode = !state.isManagerMode;
+        document.getElementById('manager-btn').textContent = state.isManagerMode ? 'Done' : 'Manage Radio';
+        renderLibrary();
+    }
+
+    function toggleRadioForm() {
+        var form = document.getElementById('radio-form');
+        form.style.display = form.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function playBook(bookName, trackIdx) {
+        var track = state.books[bookName][trackIdx];
+        state.currentSource = { type: 'book', data: { bookName: bookName, trackIdx: trackIdx, url: track.url, name: track.name } };
+        var trackKey = 'server:' + track.url;
+        pendingResumeTime = state.playbackPositions[trackKey] || 0;
+        audio.src = track.url;
+        audio.play();
+        toggleView(false);
+        updateActivePresetButtons();
+    }
+
+    function playRadio(station) {
+        pendingResumeTime = 0;
+        state.currentSource = { type: 'radio', data: station };
+        audio.src = station.url;
+        audio.play();
+        toggleView(false);
+        updateActivePresetButtons();
+    }
+
+    function handlePresetStart(id) {
+        state.isHolding = false;
+        clearTimeout(state.longPressTimer);
+        state.longPressTimer = setTimeout(function () {
+            if (state.currentSource) {
+                state.presets[id] = state.currentSource;
+                sync('POST', state, function () {});
+                flashPreset(id);
+                updatePresetButtons();
+                state.isHolding = true;
+            }
+        }, 1000);
+    }
+
+    function handlePresetEnd(id) {
+        clearTimeout(state.longPressTimer);
+        if (!state.isHolding && state.presets[id]) {
+            var preset = state.presets[id];
+            if (preset.type === 'radio') {
+                playRadio(preset.data);
+            } else {
+                playBook(preset.data.bookName, preset.data.trackIdx);
+            }
+        }
+    }
+
+    function handlePresetCancel() {
+        clearTimeout(state.longPressTimer);
+    }
+
+    function flashPreset(id) {
+        var buttons = document.querySelectorAll('[data-preset]');
+        var i;
+        for (i = 0; i < buttons.length; i++) {
+            if (buttons[i].getAttribute('data-preset') == id) {
+                buttons[i].style.backgroundColor = '#10b981';
+                buttons[i].style.color = '#0a0c10';
+                setTimeout(function (btn) {
+                    return function () {
+                        btn.style.backgroundColor = '';
+                        btn.style.color = '';
+                    };
+                }(buttons[i]), 500);
+            }
+        }
+    }
+
+    function updatePresetButtons() {
+        var buttons = document.querySelectorAll('[data-preset]');
+        var i;
+        for (i = 0; i < buttons.length; i++) {
+            var presetId = buttons[i].getAttribute('data-preset');
+            var preset = state.presets[presetId];
+            buttons[i].textContent = preset ? (preset.type === 'radio' ? preset.data.name : (preset.data.name || preset.data.bookName)) : 'Preset ' + presetId;
+        }
+        updateActivePresetButtons();
+    }
+
+    function updateActivePresetButtons() {
+        var activeUrl = state.currentSource && state.currentSource.data ? state.currentSource.data.url : null;
+        var buttons = document.querySelectorAll('[data-preset]');
+        var i;
+        for (i = 0; i < buttons.length; i++) {
+            var presetId = buttons[i].getAttribute('data-preset');
+            var preset = state.presets[presetId];
+            var isActive = preset && preset.data && activeUrl && preset.data.url === activeUrl;
+            if (isActive) {
+                buttons[i].className = buttons[i].className + ' preset-active';
+            } else {
+                buttons[i].className = buttons[i].className.replace(' preset-active', '');
+            }
+        }
+    }
+
+    function renderLibrary() {
+        var query = document.getElementById('lib-search').value.toLowerCase();
+        var container = document.getElementById('library-content');
+        container.innerHTML = '';
+
+        var stations = state.radioStations || [];
+        var i;
+        for (i = 0; i < stations.length; i++) {
+            var station = stations[i];
+            if (!station) continue;
+            if ((station.name || '').toLowerCase().indexOf(query) === -1) continue;
+            container.appendChild(createLibEntry(station.name || 'Unnamed Station', function (s) {
+                return function () { playRadio(s); };
+            }(station), 'radio', station, i));
+        }
+
+        for (var bookName in state.books) {
+            if (!state.books.hasOwnProperty(bookName)) continue;
+            var tracks = state.books[bookName] || [];
+            for (var j = 0; j < tracks.length; j++) {
+                var track = tracks[j];
+                if (!track) continue;
+                var match = (track.name || '').toLowerCase().indexOf(query) !== -1 || bookName.toLowerCase().indexOf(query) !== -1;
+                if (!match) continue;
+                var label = (bookName === track.name) ? track.name : (bookName + ' - ' + track.name);
+                container.appendChild(createLibEntry(label, function (name, idx) {
+                    return function () { playBook(name, idx); };
+                }(bookName, j), 'book', { bookName: bookName, trackIdx: j, url: track.url, name: track.name }, null));
+            }
+        }
+    }
+
+    function createLibEntry(label, tuneFn, type, data, idx) {
+        var entryData = data || {};
+        var div = document.createElement('div');
+        div.className = 'library-entry';
+
+        var title = document.createElement('h3');
+        title.textContent = label;
+        div.appendChild(title);
+
+        var tuneButton = document.createElement('button');
+        tuneButton.className = 'button';
+        tuneButton.textContent = 'Tune';
+        tuneButton.onclick = tuneFn;
+        div.appendChild(tuneButton);
+
+        var presetWrap = document.createElement('div');
+        presetWrap.style.marginTop = '8px';
+        var p;
+        for (p = 1; p <= 6; p++) {
+            var pButton = document.createElement('button');
+            pButton.className = 'button alt';
+            pButton.textContent = 'P' + p;
+            pButton.setAttribute('data-assign', p);
+            pButton.onclick = function (presetNum) {
+                return function () {
+                    var existing = state.presets[presetNum];
+                    if (existing && existing.data && existing.data.url === entryData.url) {
+                        delete state.presets[presetNum];
+                    } else {
+                        state.presets[presetNum] = { type: type, data: entryData };
+                    }
+                    sync('POST', state, function () {});
+                    updatePresetButtons();
+                    renderLibrary();
+                };
+            }(p);
+            presetWrap.appendChild(pButton);
+        }
+        div.appendChild(presetWrap);
+
+        if (state.isManagerMode && type === 'radio' && idx !== null) {
+            var tools = document.createElement('div');
+            tools.style.marginTop = '8px';
+
+            var editBtn = document.createElement('button');
+            editBtn.className = 'button alt';
+            editBtn.textContent = 'Rename';
+            editBtn.onclick = function () { editRadio(idx); };
+
+            var delBtn = document.createElement('button');
+            delBtn.className = 'button warn';
+            delBtn.textContent = 'Delete';
+            delBtn.onclick = function () { deleteRadio(idx); };
+
+            tools.appendChild(editBtn);
+            tools.appendChild(delBtn);
+            div.appendChild(tools);
+        }
+
+        return div;
+    }
+
+    function editRadio(idx) {
+        var station = state.radioStations[idx];
+        var name = prompt('New Name:', station.name);
+        var url = prompt('New URL:', station.url);
+        if (name && url) {
+            state.radioStations[idx] = { name: name, url: url };
+            sync('POST', state, function () {});
+            renderLibrary();
+        }
+    }
+
+    function deleteRadio(idx) {
+        if (confirm('Delete station?')) {
+            state.radioStations.splice(idx, 1);
+            sync('POST', state, function () {});
+            renderLibrary();
+        }
+    }
+
+    function addRadioStation() {
+        var name = document.getElementById('radio-name').value;
+        var url = document.getElementById('radio-url').value;
+        if (name && url) {
+            state.radioStations.push({ name: name, url: url });
+            sync('POST', state, function () {});
+            renderLibrary();
+            toggleRadioForm();
+        }
+    }
+
+    function parseLinks(htmlText) {
+        var links = [];
+        var regex = /href="([^"]+)"/g;
+        var match;
+        while ((match = regex.exec(htmlText))) {
+            links.push(match[1]);
+        }
+        return links;
+    }
+
+    function fetchLibrary(callback) {
+        request('GET', './books/', null, function (err, resText) {
+            if (err) {
+                callback(false);
+                return;
+            }
+
+            var links = parseLinks(resText);
+            var folders = [];
+            var files = [];
+            var i;
+            for (i = 0; i < links.length; i++) {
+                var link = links[i];
+                if (!link || link.indexOf('?') === 0 || link.indexOf('/') === 0) continue;
+                if (endsWith(link, '/')) {
+                    folders.push(link);
+                } else if (endsWith(link.toLowerCase(), '.mp3')) {
+                    files.push(link);
+                }
+            }
+
+            var latestBooks = {};
+            for (i = 0; i < files.length; i++) {
+                var fileName = decodeURIComponent(files[i]);
+                latestBooks[fileName] = [{ name: fileName, url: './books/' + files[i] }];
+            }
+
+            var folderIndex = 0;
+            function nextFolder() {
+                if (folderIndex >= folders.length) {
+                    state.books = latestBooks;
+                    saveCachedLibrary();
+                    callback(true);
+                    return;
+                }
+                var folder = folders[folderIndex++];
+                request('GET', './books/' + folder, null, function (folderErr, folderText) {
+                    if (!folderErr) {
+                        var folderLinks = parseLinks(folderText);
+                        var tracks = [];
+                        for (var j = 0; j < folderLinks.length; j++) {
+                            var trackLink = folderLinks[j];
+                            if (trackLink && endsWith(trackLink.toLowerCase(), '.mp3')) {
+                                tracks.push({ name: decodeURIComponent(trackLink), url: './books/' + folder + trackLink });
+                            }
+                        }
+                        if (tracks.length) {
+                            var bookName = decodeURIComponent(folder.replace(/\/$/, ''));
+                            latestBooks[bookName] = tracks;
+                        }
+                    }
+                    nextFolder();
+                });
+            }
+            nextFolder();
+        });
+    }
+
+    function init() {
+        sync('GET', null, function (data) {
+            if (data) {
+                for (var key in data) {
+                    if (data.hasOwnProperty(key)) {
+                        state[key] = data[key];
+                    }
+                }
+            }
+            var cachedLibrary = loadCachedLibrary();
+            fetchLibrary(function (fetched) {
+                if (fetched) {
+                    showModeMessage('LIBRARY SYNCED');
+                } else if (cachedLibrary) {
+                    showModeMessage('OFFLINE CACHE');
+                } else {
+                    showModeMessage('OFFLINE MODE');
+                }
+                updatePresetButtons();
+            });
+        });
+    }
+
+    audio.addEventListener('play', function () {
+        document.getElementById('play-btn').textContent = '||';
+    });
+    audio.addEventListener('pause', function () {
+        document.getElementById('play-btn').textContent = '▶';
+    });
+    audio.addEventListener('canplay', function () {
+        if (pendingResumeTime > 0) {
+            audio.currentTime = pendingResumeTime;
+            pendingResumeTime = 0;
+        }
+    });
+
+    audio.ontimeupdate = function () {
+        if (!isDragging) {
+            seekBar.value = audio.currentTime;
+            seekBar.max = audio.duration || 0;
+            updateCurrentTimeDisplay(audio.currentTime);
+            document.getElementById('duration').textContent = formatTime(audio.duration);
+            if (state.currentSource && state.currentSource.type === 'book' && Math.floor(audio.currentTime) % 10 === 0) savePosition();
+        }
+    };
+
+    seekBar.onmousedown = function () { isDragging = true; };
+    seekBar.ontouchstart = function () { isDragging = true; };
+    seekBar.oninput = function () { updateCurrentTimeDisplay(seekBar.value); };
+    seekBar.onchange = function () {
+        audio.currentTime = seekBar.value;
+        isDragging = false;
+        savePosition();
+    };
+
+    volumeControl.oninput = function () {
+        audio.volume = volumeControl.value;
+    };
+
+    document.getElementById('day-mode-btn').onclick = toggleDayMode;
+    document.getElementById('library-btn').onclick = function () { toggleView(true); };
+    document.getElementById('exit-btn').onclick = function () { toggleView(false); };
+    document.getElementById('manager-btn').onclick = toggleManager;
+    document.getElementById('toggle-radio-form').onclick = toggleRadioForm;
+    document.getElementById('save-station').onclick = addRadioStation;
+    document.getElementById('lib-search').oninput = renderLibrary;
+
+    document.getElementById('sleep-15').onclick = function () { setSleepTimer(15); };
+    document.getElementById('sleep-30').onclick = function () { setSleepTimer(30); };
+
+    document.getElementById('play-btn').onclick = togglePlay;
+    document.getElementById('prev-btn').onclick = function () { smartSeek(-15); };
+    document.getElementById('next-btn').onclick = function () { smartSeek(30); };
+
+    var presetButtons = document.querySelectorAll('[data-preset]');
+    var i;
+    for (i = 0; i < presetButtons.length; i++) {
+        presetButtons[i].onmousedown = function () { handlePresetStart(this.getAttribute('data-preset')); };
+        presetButtons[i].ontouchstart = function () { handlePresetStart(this.getAttribute('data-preset')); };
+        presetButtons[i].onmouseup = function () { handlePresetEnd(this.getAttribute('data-preset')); };
+        presetButtons[i].ontouchend = function () { handlePresetEnd(this.getAttribute('data-preset')); };
+        presetButtons[i].onmouseleave = handlePresetCancel;
+        presetButtons[i].ontouchcancel = handlePresetCancel;
+    }
+
+    init();
+</script>
+</body>
+</html>
