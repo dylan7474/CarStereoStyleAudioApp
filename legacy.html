@@ -358,7 +358,7 @@
 
     function togglePlay() {
         if (audio.paused) {
-            audio.play();
+            safePlay();
         } else {
             audio.pause();
         }
@@ -441,8 +441,10 @@
         state.currentSource = { type: 'book', data: { bookName: bookName, trackIdx: trackIdx, url: track.url, name: track.name } };
         var trackKey = 'server:' + track.url;
         pendingResumeTime = state.playbackPositions[trackKey] || 0;
+        audio.pause();
         audio.src = track.url;
-        audio.play();
+        audio.load();
+        safePlay();
         toggleView(false);
         updateActivePresetButtons();
     }
@@ -450,8 +452,10 @@
     function playRadio(station) {
         pendingResumeTime = 0;
         state.currentSource = { type: 'radio', data: station };
+        audio.pause();
         audio.src = station.url;
-        audio.play();
+        audio.load();
+        safePlay();
         toggleView(false);
         updateActivePresetButtons();
     }
@@ -654,6 +658,30 @@
         }
     }
 
+    function safePlay() {
+        var playPromise;
+        try {
+            playPromise = audio.play();
+        } catch (e) {
+            showModeMessage('TAP PLAY TO START');
+            return;
+        }
+        if (playPromise && typeof playPromise.then === 'function') {
+            playPromise.catch(function () {
+                showModeMessage('TAP PLAY TO START');
+            });
+        }
+    }
+
+    function bindTap(element, handler) {
+        if (!element || !handler) return;
+        element.onclick = handler;
+        element.ontouchstart = function (event) {
+            if (event && event.preventDefault) event.preventDefault();
+            handler();
+        };
+    }
+
     function parseLinks(htmlText) {
         var links = [];
         var regex = /href="([^"]+)"/g;
@@ -784,20 +812,20 @@
         audio.volume = volumeControl.value;
     };
 
-    document.getElementById('day-mode-btn').onclick = toggleDayMode;
-    document.getElementById('library-btn').onclick = function () { toggleView(true); };
-    document.getElementById('exit-btn').onclick = function () { toggleView(false); };
-    document.getElementById('manager-btn').onclick = toggleManager;
-    document.getElementById('toggle-radio-form').onclick = toggleRadioForm;
-    document.getElementById('save-station').onclick = addRadioStation;
+    bindTap(document.getElementById('day-mode-btn'), toggleDayMode);
+    bindTap(document.getElementById('library-btn'), function () { toggleView(true); });
+    bindTap(document.getElementById('exit-btn'), function () { toggleView(false); });
+    bindTap(document.getElementById('manager-btn'), toggleManager);
+    bindTap(document.getElementById('toggle-radio-form'), toggleRadioForm);
+    bindTap(document.getElementById('save-station'), addRadioStation);
     document.getElementById('lib-search').oninput = renderLibrary;
 
-    document.getElementById('sleep-15').onclick = function () { setSleepTimer(15); };
-    document.getElementById('sleep-30').onclick = function () { setSleepTimer(30); };
+    bindTap(document.getElementById('sleep-15'), function () { setSleepTimer(15); });
+    bindTap(document.getElementById('sleep-30'), function () { setSleepTimer(30); });
 
-    document.getElementById('play-btn').onclick = togglePlay;
-    document.getElementById('prev-btn').onclick = function () { smartSeek(-15); };
-    document.getElementById('next-btn').onclick = function () { smartSeek(30); };
+    bindTap(document.getElementById('play-btn'), togglePlay);
+    bindTap(document.getElementById('prev-btn'), function () { smartSeek(-15); });
+    bindTap(document.getElementById('next-btn'), function () { smartSeek(30); });
 
     var presetButtons = document.querySelectorAll('[data-preset]');
     var i;
