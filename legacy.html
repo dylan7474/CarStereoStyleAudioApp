@@ -173,7 +173,7 @@
             <div class="display" id="sleep-timer-display">Sleep: Off</div>
             <div class="seek-row">
                 <span class="label">Progress</span>
-                <input type="range" id="seek-bar" value="0" step="1">
+                <input type="range" id="seek-bar" min="0" max="0" value="0" step="1">
                 <div class="label" id="duration">00:00</div>
             </div>
         </div>
@@ -232,7 +232,7 @@
         </div>
     </div>
 
-    <audio id="audio-player"></audio>
+    <audio id="audio-player" preload="metadata" playsinline webkit-playsinline></audio>
 
 <script>
     var BOOKMARKS_ENDPOINT = './api/bookmarks';
@@ -298,10 +298,14 @@
     }
 
     function saveCachedLibrary() {
-        localStorage.setItem(LIBRARY_CACHE_KEY, JSON.stringify({
-            books: state.books,
-            cachedAt: new Date().toISOString()
-        }));
+        try {
+            localStorage.setItem(LIBRARY_CACHE_KEY, JSON.stringify({
+                books: state.books,
+                cachedAt: new Date().toISOString()
+            }));
+        } catch (e) {
+            return;
+        }
     }
 
     function request(method, url, body, callback) {
@@ -776,6 +780,9 @@
     volumeControl.oninput = function () {
         audio.volume = volumeControl.value;
     };
+    volumeControl.onchange = function () {
+        audio.volume = volumeControl.value;
+    };
 
     document.getElementById('day-mode-btn').onclick = toggleDayMode;
     document.getElementById('library-btn').onclick = function () { toggleView(true); };
@@ -803,7 +810,13 @@
         presetButtons[i].ontouchcancel = handlePresetCancel;
     }
 
-    init();
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        setTimeout(init, 0);
+    } else if (document.addEventListener) {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        window.onload = init;
+    }
 </script>
 </body>
 </html>
