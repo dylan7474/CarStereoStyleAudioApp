@@ -55,6 +55,15 @@
             background: var(--accent); border-radius: 50%; border: 2px solid white;
             box-shadow: 0 0 15px var(--accent);
         }
+        input[type=range].balance-bar { 
+            width: 100%; height: 12px; border-radius: 0; background: rgba(255,255,255,0.1); 
+            appearance: none; outline: none; margin: 0; cursor: pointer;
+        }
+        input[type=range].balance-bar::-webkit-slider-thumb {
+            appearance: none; width: 24px; height: 24px; 
+            background: var(--accent); border-radius: 50%; border: 2px solid white;
+            box-shadow: 0 0 15px var(--accent);
+        }
         input[type=range].vol-vertical {
             writing-mode: bt-lr;
             -webkit-appearance: slider-vertical;
@@ -103,10 +112,24 @@
                 <span class="text-[10px] font-black opacity-30 tracking-tighter">PROGRESS</span>
                 <input type="range" id="seek-bar-mobile" class="seek-bar" value="0" step="1">
             </div>
+            <div class="sm:hidden flex flex-col gap-3">
+                <div class="flex items-center justify-between">
+                    <span class="text-[10px] font-black opacity-30 tracking-tighter">BLUE BAL</span>
+                    <span id="noise-balance-readout-mobile" class="text-[10px] font-semibold opacity-60">1.30x</span>
+                </div>
+                <input type="range" id="noise-balance-mobile" class="balance-bar noise-balance" min="0.6" max="1.8" step="0.05" value="1.3">
+            </div>
 
             <div class="hidden sm:flex items-center gap-6">
                 <span class="text-[10px] font-black opacity-30 tracking-tighter">VOL</span>
                 <input type="range" id="vol-control" class="vol-control" min="0" max="1" step="0.05" value="1">
+            </div>
+            <div class="hidden sm:flex items-center gap-6">
+                <div class="flex items-center gap-3">
+                    <span class="text-[10px] font-black opacity-30 tracking-tighter">BLUE BAL</span>
+                    <span id="noise-balance-readout" class="text-[10px] font-semibold opacity-60">1.30x</span>
+                </div>
+                <input type="range" id="noise-balance" class="balance-bar noise-balance flex-1" min="0.6" max="1.8" step="0.05" value="1.3">
             </div>
 
             <div class="grid grid-cols-2 gap-3">
@@ -179,9 +202,14 @@
     const timeDisplay = document.getElementById('display-title');
     const noiseToggleBtn = document.getElementById('noise-toggle');
     const noiseTypeBtn = document.getElementById('noise-type-toggle');
+    const noiseBalanceControls = Array.from(document.querySelectorAll('.noise-balance'));
+    const noiseBalanceReadout = document.getElementById('noise-balance-readout');
+    const noiseBalanceReadoutMobile = document.getElementById('noise-balance-readout-mobile');
     let noiseContext = null;
     let noiseSource = null;
     let noiseGain = null;
+    const baseNoiseGain = 0.12;
+    let noiseBalance = 1.3;
     let noiseType = 'white';
     let noiseIsOn = false;
     function showModeMessage(message, timeout = 3000) {
@@ -203,6 +231,18 @@
         if (noiseTypeBtn) {
             noiseTypeBtn.textContent = noiseType === 'blue' ? 'Blue' : 'White';
         }
+    }
+
+    function updateNoiseBalanceReadout() {
+        const balanceLabel = `${noiseBalance.toFixed(2)}x`;
+        if (noiseBalanceReadout) noiseBalanceReadout.textContent = balanceLabel;
+        if (noiseBalanceReadoutMobile) noiseBalanceReadoutMobile.textContent = balanceLabel;
+    }
+
+    function updateNoiseGain() {
+        if (!noiseGain) return;
+        const balanceMultiplier = noiseType === 'blue' ? noiseBalance : 1;
+        noiseGain.gain.value = baseNoiseGain * balanceMultiplier;
     }
 
     function createNoiseBuffer(context, type) {
@@ -240,7 +280,7 @@
         noiseSource.buffer = createNoiseBuffer(noiseContext, noiseType);
         noiseSource.loop = true;
         noiseGain = noiseContext.createGain();
-        noiseGain.gain.value = 0.12;
+        updateNoiseGain();
         noiseSource.connect(noiseGain).connect(noiseContext.destination);
         noiseSource.start();
         noiseIsOn = true;
@@ -328,6 +368,17 @@
             volumeControls.forEach((other) => {
                 if (other !== e.target) other.value = e.target.value;
             });
+        });
+    });
+
+    noiseBalanceControls.forEach((control) => {
+        control.addEventListener('input', (e) => {
+            noiseBalance = parseFloat(e.target.value);
+            noiseBalanceControls.forEach((other) => {
+                if (other !== e.target) other.value = e.target.value;
+            });
+            updateNoiseBalanceReadout();
+            updateNoiseGain();
         });
     });
 
@@ -610,6 +661,7 @@
         }
         updatePresetLabels();
         updateNoiseUI();
+        updateNoiseBalanceReadout();
     }
     init();
 </script>

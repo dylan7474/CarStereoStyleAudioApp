@@ -24,6 +24,7 @@ CarStereoStyleAudioApp is a lightweight web app that presents a car-stereo-inspi
 - Added a legacy-friendly `legacy.html` page for older browsers without modern CSS/JS features.
 - Tuned legacy playback controls to favor touch-first Safari devices with a tap-to-start fallback message.
 - Added a top-bar noise toggle with white/blue noise playback that can run alongside the main audio stream.
+- Added a blue-noise balance slider so the relative loudness between white and blue noise can be tuned.
 
 ## Improvement Ideas
 
