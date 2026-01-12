@@ -6,14 +6,14 @@ CarStereoStyleAudioApp is a lightweight web app that presents a car-stereo-inspi
 
 - **Play/Pause**: Toggle playback for the current track.
 - **Next/Previous**: Skip forward or backward through the playlist.
-- **Volume**: Adjust the output level with the volume control.
+- **Noise/Stream Mix**: Balance the ambient noise layer against the main audio stream.
 - **Source**: Switch between available inputs or playlists.
 - **Sleep Timer**: Choose a 15 or 30 minute timer to stop playback.
 
 ## Recent Updates
 
 - Mobile-friendly player controls now stay visible with a compact layout.
-- Phone layout now prioritizes the full-width progress scrubber with a vertical volume slider.
+- Phone layout now prioritizes the full-width progress scrubber with a vertical mix slider.
 - The library info panel collapses on smaller screens for easier browsing.
 - Sleep timer displays a live countdown when active.
 - Preset buttons now highlight the active source during playback.
@@ -24,7 +24,7 @@ CarStereoStyleAudioApp is a lightweight web app that presents a car-stereo-inspi
 - Added a legacy-friendly `legacy.html` page for older browsers without modern CSS/JS features.
 - Tuned legacy playback controls to favor touch-first Safari devices with a tap-to-start fallback message.
 - Added a top-bar noise toggle with white/blue noise playback that can run alongside the main audio stream.
-- Added a blue-noise balance slider so the relative loudness between white and blue noise can be tuned.
+- Merged the stream volume and noise balance into a single mix control that works for both white and blue noise.
 
 ## Improvement Ideas
 
