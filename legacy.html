@@ -47,6 +47,10 @@
             color: #e2e8f0;
             border: 1px solid rgba(255, 255, 255, 0.15);
         }
+        .button.is-on {
+            background: #10b981;
+            color: #0a0c10;
+        }
         .button.warn {
             background: #ef4444;
             color: #fff;
@@ -96,7 +100,7 @@
         .controls .button.alt {
             background: #1f2937;
         }
-        .volume-row {
+        .mix-row {
             margin-top: 12px;
         }
         .grid {
@@ -162,6 +166,8 @@
         <div class="header">
             <h1>INFOTAINMENT LEGACY</h1>
             <div class="header-actions">
+                <button class="button alt" id="noise-toggle">Noise Off</button>
+                <button class="button alt" id="noise-type-toggle">White</button>
                 <button class="button alt" id="day-mode-btn">☀️</button>
                 <button class="button" id="library-btn">LIBRARY</button>
             </div>
@@ -184,9 +190,10 @@
                 <button class="button main" id="play-btn">▶</button>
                 <button class="button alt" id="next-btn">⏭</button>
             </div>
-            <div class="volume-row">
-                <span class="label">Volume</span>
-                <input type="range" id="vol-control" min="0" max="1" step="0.05" value="1">
+            <div class="mix-row">
+                <span class="label">Noise/Stream Mix</span>
+                <div class="label" id="noise-balance-readout">Noise 33% · Stream 67%</div>
+                <input type="range" id="noise-balance" min="0.6" max="1.8" step="0.05" value="1.0">
             </div>
         </div>
 
@@ -258,12 +265,24 @@
 
     var audio = document.getElementById('audio-player');
     var seekBar = document.getElementById('seek-bar');
-    var volumeControl = document.getElementById('vol-control');
     var modeIndicator = document.getElementById('mode-indicator');
     var defaultModeText = modeIndicator.textContent;
     var sleepDisplay = document.getElementById('sleep-timer-display');
     var defaultSleepText = sleepDisplay.textContent;
     var timeDisplay = document.getElementById('display-title');
+    var noiseToggleBtn = document.getElementById('noise-toggle');
+    var noiseTypeBtn = document.getElementById('noise-type-toggle');
+    var noiseBalanceControl = document.getElementById('noise-balance');
+    var noiseBalanceReadout = document.getElementById('noise-balance-readout');
+    var noiseContext = null;
+    var noiseSource = null;
+    var noiseGain = null;
+    var baseNoiseGain = 0.12;
+    var blueNoiseGainBoost = 3;
+    var noiseBalanceLimits = { min: 0.6, max: 1.8 };
+    var noiseBalance = 1.0;
+    var noiseType = 'white';
+    var noiseIsOn = false;
 
     function getQueryParam(name) {
         var match = new RegExp('[?&]' + name + '=([^&]+)').exec(window.location.search);
@@ -282,6 +301,116 @@
                 modeIndicator.textContent = defaultModeText;
             }
         }, timeout || 3000);
+    }
+
+    function updateNoiseUI() {
+        if (noiseToggleBtn) {
+            noiseToggleBtn.textContent = noiseIsOn ? 'Noise On' : 'Noise Off';
+            if (noiseIsOn) {
+                noiseToggleBtn.className = noiseToggleBtn.className.replace(' is-on', '') + ' is-on';
+            } else {
+                noiseToggleBtn.className = noiseToggleBtn.className.replace(' is-on', '');
+            }
+        }
+        if (noiseTypeBtn) {
+            noiseTypeBtn.textContent = noiseType === 'blue' ? 'Blue' : 'White';
+        }
+    }
+
+    function getNoiseMix() {
+        var range = noiseBalanceLimits.max - noiseBalanceLimits.min;
+        if (range === 0) return 0;
+        return Math.min(1, Math.max(0, (noiseBalance - noiseBalanceLimits.min) / range));
+    }
+
+    function updateNoiseBalanceReadout() {
+        var mix = getNoiseMix();
+        var noisePercent = Math.round(mix * 100);
+        var streamPercent = Math.round((1 - mix) * 100);
+        if (noiseBalanceReadout) {
+            noiseBalanceReadout.textContent = 'Noise ' + noisePercent + '% · Stream ' + streamPercent + '%';
+        }
+    }
+
+    function updateNoiseGain() {
+        var mix = getNoiseMix();
+        if (noiseGain) {
+            var noiseTypeBoost = noiseType === 'blue' ? blueNoiseGainBoost : 1;
+            noiseGain.gain.value = baseNoiseGain * noiseBalance * noiseTypeBoost;
+        }
+        audio.volume = 1 - mix;
+    }
+
+    function createNoiseBuffer(context, type) {
+        var bufferSize = context.sampleRate * 2;
+        var buffer = context.createBuffer(1, bufferSize, context.sampleRate);
+        var data = buffer.getChannelData(0);
+        if (type === 'blue') {
+            var lastWhite = 0;
+            for (var i = 0; i < bufferSize; i++) {
+                var white = Math.random() * 2 - 1;
+                data[i] = (white - lastWhite) * 0.5;
+                lastWhite = white;
+            }
+        } else {
+            for (var j = 0; j < bufferSize; j++) {
+                data[j] = Math.random() * 2 - 1;
+            }
+        }
+        return buffer;
+    }
+
+    function startNoise() {
+        if (!noiseContext) {
+            var AudioContextClass = window.AudioContext || window.webkitAudioContext;
+            noiseContext = new AudioContextClass();
+        }
+        if (noiseContext.state === 'suspended') {
+            noiseContext.resume();
+        }
+        if (noiseSource) {
+            noiseSource.stop();
+            noiseSource.disconnect();
+        }
+        noiseSource = noiseContext.createBufferSource();
+        noiseSource.buffer = createNoiseBuffer(noiseContext, noiseType);
+        noiseSource.loop = true;
+        noiseGain = noiseContext.createGain();
+        updateNoiseGain();
+        noiseSource.connect(noiseGain);
+        noiseGain.connect(noiseContext.destination);
+        noiseSource.start();
+        noiseIsOn = true;
+        updateNoiseUI();
+        showModeMessage('NOISE ' + noiseType.toUpperCase());
+    }
+
+    function stopNoise() {
+        if (noiseSource) {
+            noiseSource.stop();
+            noiseSource.disconnect();
+            noiseSource = null;
+        }
+        noiseIsOn = false;
+        updateNoiseUI();
+        showModeMessage('NOISE OFF');
+    }
+
+    function toggleNoise() {
+        if (noiseIsOn) {
+            stopNoise();
+        } else {
+            startNoise();
+        }
+    }
+
+    function toggleNoiseType() {
+        noiseType = noiseType === 'white' ? 'blue' : 'white';
+        if (noiseIsOn) {
+            startNoise();
+        } else {
+            updateNoiseUI();
+        }
     }
 
     function loadCachedLibrary() {
@@ -805,11 +934,10 @@
         savePosition();
     };
 
-    volumeControl.oninput = function () {
-        audio.volume = volumeControl.value;
-    };
-    volumeControl.onchange = function () {
-        audio.volume = volumeControl.value;
+    noiseBalanceControl.oninput = function () {
+        noiseBalance = parseFloat(noiseBalanceControl.value);
+        updateNoiseBalanceReadout();
+        updateNoiseGain();
     };
 
     bindTap(document.getElementById('day-mode-btn'), toggleDayMode);
@@ -819,6 +947,8 @@
     bindTap(document.getElementById('toggle-radio-form'), toggleRadioForm);
     bindTap(document.getElementById('save-station'), addRadioStation);
     document.getElementById('lib-search').oninput = renderLibrary;
+    bindTap(document.getElementById('noise-toggle'), toggleNoise);
+    bindTap(document.getElementById('noise-type-toggle'), toggleNoiseType);
 
     bindTap(document.getElementById('sleep-15'), function () { setSleepTimer(15); });
     bindTap(document.getElementById('sleep-30'), function () { setSleepTimer(30); });
@@ -837,6 +967,10 @@
         presetButtons[i].onmouseleave = handlePresetCancel;
         presetButtons[i].ontouchcancel = handlePresetCancel;
     }
+
+    updateNoiseBalanceReadout();
+    updateNoiseGain();
+    updateNoiseUI();
 
     if (document.readyState === 'complete' || document.readyState === 'interactive') {
         setTimeout(init, 0);
