@@ -204,6 +204,7 @@
     let noiseSource = null;
     let noiseGain = null;
     const baseNoiseGain = 0.12;
+    const blueNoiseGainBoost = 3;
     const noiseBalanceLimits = { min: 0.6, max: 1.8 };
     let noiseBalance = 1.0;
     let noiseType = 'white';
@@ -247,7 +248,8 @@
     function updateNoiseGain() {
         const mix = getNoiseMix();
         if (noiseGain) {
-            noiseGain.gain.value = baseNoiseGain * noiseBalance;
+            const noiseTypeBoost = noiseType === 'blue' ? blueNoiseGainBoost : 1;
+            noiseGain.gain.value = baseNoiseGain * noiseBalance * noiseTypeBoost;
         }
         audio.volume = 1 - mix;
     }
