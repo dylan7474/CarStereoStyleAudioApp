@@ -71,6 +71,8 @@
             <h1 class="text-2xl font-bold tracking-tight">INFOTAINMENT <span class="text-emerald-500 font-light">4.3</span></h1>
         </div>
         <div class="flex gap-3">
+            <button id="noise-toggle" onclick="toggleNoise()" class="px-4 py-2 rounded-2xl font-bold bg-white/5 border border-white/10 text-[11px] uppercase tracking-widest active:scale-95 transition-transform">Noise Off</button>
+            <button id="noise-type-toggle" onclick="toggleNoiseType()" class="px-3 py-2 rounded-2xl font-bold bg-white/5 border border-white/10 text-[11px] uppercase tracking-widest active:scale-95 transition-transform">White</button>
             <button onclick="toggleDayMode()" class="p-3 rounded-full bg-white/5 border border-white/10">☀️</button>
             <button onclick="toggleView('library')" class="px-6 py-2 rounded-2xl font-bold bg-emerald-500 text-black active:scale-95 transition-transform">LIBRARY</button>
         </div>
@@ -175,6 +177,13 @@
     const sleepDisplay = document.getElementById('sleep-timer-display');
     const defaultSleepText = sleepDisplay.textContent;
     const timeDisplay = document.getElementById('display-title');
+    const noiseToggleBtn = document.getElementById('noise-toggle');
+    const noiseTypeBtn = document.getElementById('noise-type-toggle');
+    let noiseContext = null;
+    let noiseSource = null;
+    let noiseGain = null;
+    let noiseType = 'white';
+    let noiseIsOn = false;
     function showModeMessage(message, timeout = 3000) {
         if (sleepEndTime) return;
         modeIndicator.textContent = message;
@@ -183,6 +192,88 @@
                 modeIndicator.textContent = defaultModeText;
             }
         }, timeout);
+    }
+
+    function updateNoiseUI() {
+        if (noiseToggleBtn) {
+            noiseToggleBtn.textContent = noiseIsOn ? 'Noise On' : 'Noise Off';
+            noiseToggleBtn.classList.toggle('bg-emerald-500', noiseIsOn);
+            noiseToggleBtn.classList.toggle('text-black', noiseIsOn);
+        }
+        if (noiseTypeBtn) {
+            noiseTypeBtn.textContent = noiseType === 'blue' ? 'Blue' : 'White';
+        }
+    }
+
+    function createNoiseBuffer(context, type) {
+        const bufferSize = context.sampleRate * 2;
+        const buffer = context.createBuffer(1, bufferSize, context.sampleRate);
+        const data = buffer.getChannelData(0);
+        if (type === 'blue') {
+            let lastWhite = 0;
+            for (let i = 0; i < bufferSize; i++) {
+                const white = Math.random() * 2 - 1;
+                data[i] = (white - lastWhite) * 0.5;
+                lastWhite = white;
+            }
+        } else {
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = Math.random() * 2 - 1;
+            }
+        }
+        return buffer;
+    }
+
+    function startNoise() {
+        if (!noiseContext) {
+            const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+            noiseContext = new AudioContextClass();
+        }
+        if (noiseContext.state === 'suspended') {
+            noiseContext.resume();
+        }
+        if (noiseSource) {
+            noiseSource.stop();
+            noiseSource.disconnect();
+        }
+        noiseSource = noiseContext.createBufferSource();
+        noiseSource.buffer = createNoiseBuffer(noiseContext, noiseType);
+        noiseSource.loop = true;
+        noiseGain = noiseContext.createGain();
+        noiseGain.gain.value = 0.12;
+        noiseSource.connect(noiseGain).connect(noiseContext.destination);
+        noiseSource.start();
+        noiseIsOn = true;
+        updateNoiseUI();
+        showModeMessage(`NOISE ${noiseType.toUpperCase()}`);
+    }
+
+    function stopNoise() {
+        if (noiseSource) {
+            noiseSource.stop();
+            noiseSource.disconnect();
+            noiseSource = null;
+        }
+        noiseIsOn = false;
+        updateNoiseUI();
+        showModeMessage('NOISE OFF');
+    }
+
+    function toggleNoise() {
+        if (noiseIsOn) {
+            stopNoise();
+        } else {
+            startNoise();
+        }
+    }
+
+    function toggleNoiseType() {
+        noiseType = noiseType === 'white' ? 'blue' : 'white';
+        if (noiseIsOn) {
+            startNoise();
+        } else {
+            updateNoiseUI();
+        }
     }
 
     function loadCachedLibrary() {
@@ -518,6 +609,7 @@
             }
         }
         updatePresetLabels();
+        updateNoiseUI();
     }
     init();
 </script>
