@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CarStereo Infotainment (Legacy) v4.4</title>
+    <title>CarStereo Infotainment (Legacy)</title>
     <style>
         body {
             margin: 0;
@@ -90,8 +90,12 @@
             margin-bottom: 12px;
         }
         .controls .button {
-            width: 48%;
+            width: 30%;
             text-align: center;
+        }
+        .controls .button.main {
+            background: #10b981;
+            color: #0a0c10;
         }
         .controls .button.alt {
             background: #1f2937;
@@ -108,11 +112,6 @@
         }
         .preset-active {
             box-shadow: 0 0 10px #10b981;
-        }
-        .preset-paused {
-            box-shadow: 0 0 10px #f59e0b;
-            background: rgba(245, 158, 11, 0.2);
-            color: #f59e0b;
         }
         .library-overlay {
             position: fixed;
@@ -188,6 +187,7 @@
         <div class="panel">
             <div class="controls">
                 <button class="button alt" id="prev-btn">⏮</button>
+                <button class="button main" id="play-btn">▶</button>
                 <button class="button alt" id="next-btn">⏭</button>
             </div>
             <div class="mix-row">
@@ -258,12 +258,6 @@
     };
 
     var pendingResumeTime = 0;
-    var pendingPlayRequest = false;
-    var playAttemptCount = 0;
-    var maxPlayAttempts = 6;
-    var playRetryTimer = null;
-    var awaitingUserGesture = false;
-    var isPlaying = false;
     var isDragging = false;
     var sleepTimerId = null;
     var sleepIntervalId = null;
@@ -289,33 +283,6 @@
     var noiseBalance = 0.33;
     var noiseType = 'white';
     var noiseIsOn = false;
-
-    var playbackLog = [];
-
-    function logPlaybackEvent(eventName, detail) {
-        var hasConsole = window.console && window.console.log;
-        var entry = {
-            name: eventName,
-            detail: typeof detail === 'undefined' ? null : detail,
-            time: new Date().toISOString()
-        };
-        playbackLog.push(entry);
-        if (playbackLog.length > 100) {
-            playbackLog.shift();
-        }
-        if (hasConsole) {
-            var message = '[Legacy Playback] ' + eventName;
-            if (typeof detail !== 'undefined') {
-                window.console.log(message, detail);
-            } else {
-                window.console.log(message);
-            }
-        }
-    }
-
-    window.getLegacyPlaybackLog = function () {
-        return playbackLog.slice();
-    };
 
     function getQueryParam(name) {
         var match = new RegExp('[?&]' + name + '=([^&]+)').exec(window.location.search);
@@ -518,6 +485,14 @@
         return value < 10 ? '0' + value : '' + value;
     }
 
+    function togglePlay() {
+        if (audio.paused) {
+            safePlay();
+        } else {
+            audio.pause();
+        }
+    }
+
     function toggleDayMode() {
         if (document.body.className.indexOf('day-mode') !== -1) {
             document.body.className = document.body.className.replace('day-mode', '');
@@ -598,7 +573,7 @@
         audio.pause();
         audio.src = track.url;
         audio.load();
-        requestPlay('book');
+        safePlay();
         toggleView(false);
         updateActivePresetButtons();
     }
@@ -609,7 +584,7 @@
         audio.pause();
         audio.src = station.url;
         audio.load();
-        requestPlay('radio');
+        safePlay();
         toggleView(false);
         updateActivePresetButtons();
     }
@@ -632,22 +607,6 @@
         clearTimeout(state.longPressTimer);
         if (!state.isHolding && state.presets[id]) {
             var preset = state.presets[id];
-            var activeUrl = state.currentSource && state.currentSource.data ? state.currentSource.data.url : null;
-            var presetUrl = preset.data ? preset.data.url : null;
-            if (presetUrl && activeUrl && presetUrl === activeUrl) {
-                if (!isPlaying) {
-                    requestPlay('preset');
-                    showModeMessage('PLAY');
-                } else {
-                    audio.pause();
-                    pendingPlayRequest = false;
-                    clearPlayRetry();
-                    isPlaying = false;
-                    showModeMessage('PAUSE');
-                }
-                updateActivePresetButtons();
-                return;
-            }
             if (preset.type === 'radio') {
                 playRadio(preset.data);
             } else {
@@ -696,12 +655,10 @@
             var presetId = buttons[i].getAttribute('data-preset');
             var preset = state.presets[presetId];
             var isActive = preset && preset.data && activeUrl && preset.data.url === activeUrl;
-            var baseClass = buttons[i].className.replace(' preset-active', '').replace(' preset-paused', '');
-            buttons[i].className = baseClass;
-            if (isActive && isPlaying) {
-                buttons[i].className += ' preset-active';
-            } else if (isActive && !isPlaying) {
-                buttons[i].className += ' preset-paused';
+            if (isActive) {
+                buttons[i].className = buttons[i].className + ' preset-active';
+            } else {
+                buttons[i].className = buttons[i].className.replace(' preset-active', '');
             }
         }
     }
@@ -830,108 +787,28 @@
         }
     }
 
-    function clearPlayRetry() {
-        if (playRetryTimer) {
-            clearTimeout(playRetryTimer);
-            playRetryTimer = null;
-        }
-    }
-
-    function schedulePlayRetry(reason) {
-        if (!pendingPlayRequest || playAttemptCount >= maxPlayAttempts) {
-            if (pendingPlayRequest) {
-                logPlaybackEvent('play-giveup', { reason: reason, attempts: playAttemptCount });
-            }
-            pendingPlayRequest = false;
-            return;
-        }
-        var delay = Math.min(1500, 300 * playAttemptCount);
-        clearPlayRetry();
-        playRetryTimer = setTimeout(function () {
-            attemptPlay(reason);
-        }, delay);
-    }
-
-    function requestPlay(reason) {
-        pendingPlayRequest = true;
-        playAttemptCount = 0;
-        attemptPlay(reason || 'request');
-    }
-
-    function attemptPlay(reason) {
+    function safePlay() {
         var playPromise;
         try {
-            playAttemptCount += 1;
-            logPlaybackEvent('play-attempt', {
-                src: audio.currentSrc || audio.src,
-                time: audio.currentTime,
-                reason: reason,
-                attempt: playAttemptCount
-            });
             playPromise = audio.play();
         } catch (e) {
-            logPlaybackEvent('play-exception', e);
-            showModeMessage('TAP DISPLAY TO START');
-            awaitingUserGesture = true;
-            schedulePlayRetry('exception');
+            showModeMessage('TAP PLAY TO START');
             return;
         }
         if (playPromise && typeof playPromise.then === 'function') {
-            playPromise.then(function () {
-                pendingPlayRequest = false;
-                awaitingUserGesture = false;
-                logPlaybackEvent('play-started');
-                clearPlayRetry();
-            }).catch(function (err) {
-                logPlaybackEvent('play-blocked', err);
-                showModeMessage('TAP DISPLAY TO START');
-                awaitingUserGesture = true;
-                schedulePlayRetry('blocked');
+            playPromise.catch(function () {
+                showModeMessage('TAP PLAY TO START');
             });
         }
     }
 
-    function togglePlayback() {
-        if (!audio.src) {
-            showModeMessage('SELECT A SOURCE');
-            return;
-        }
-        if (!isPlaying) {
-            requestPlay('toggle');
-            showModeMessage('PLAY');
-        } else {
-            audio.pause();
-            pendingPlayRequest = false;
-            clearPlayRetry();
-            isPlaying = false;
-            showModeMessage('PAUSE');
-        }
-        updateActivePresetButtons();
-    }
-
-    var lastTouchTime = 0;
-
     function bindTap(element, handler) {
         if (!element || !handler) return;
-        element.onclick = function (event) {
-            if (event && event.preventDefault) event.preventDefault();
-            if (Date.now() - lastTouchTime < 500) return;
-            handler();
-        };
+        element.onclick = handler;
         element.ontouchstart = function (event) {
             if (event && event.preventDefault) event.preventDefault();
-            lastTouchTime = Date.now();
             handler();
         };
-    }
-
-    function handleUserGesture() {
-        if (noiseContext && noiseContext.state === 'suspended') {
-            noiseContext.resume();
-        }
-        if (awaitingUserGesture && pendingPlayRequest && audio.paused) {
-            requestPlay('user-gesture');
-        }
     }
 
     function parseLinks(htmlText) {
@@ -1025,14 +902,16 @@
         });
     }
 
+    audio.addEventListener('play', function () {
+        document.getElementById('play-btn').textContent = '||';
+    });
+    audio.addEventListener('pause', function () {
+        document.getElementById('play-btn').textContent = '▶';
+    });
     audio.addEventListener('canplay', function () {
-        logPlaybackEvent('canplay');
         if (pendingResumeTime > 0) {
             audio.currentTime = pendingResumeTime;
             pendingResumeTime = 0;
-        }
-        if (pendingPlayRequest && audio.paused) {
-            attemptPlay('canplay');
         }
     });
 
@@ -1074,58 +953,24 @@
     bindTap(document.getElementById('sleep-15'), function () { setSleepTimer(15); });
     bindTap(document.getElementById('sleep-30'), function () { setSleepTimer(30); });
 
+    bindTap(document.getElementById('play-btn'), togglePlay);
     bindTap(document.getElementById('prev-btn'), function () { smartSeek(-15); });
     bindTap(document.getElementById('next-btn'), function () { smartSeek(30); });
-    bindTap(document.getElementById('display-title'), togglePlayback);
 
     var presetButtons = document.querySelectorAll('[data-preset]');
     var i;
     for (i = 0; i < presetButtons.length; i++) {
-        if (window.PointerEvent) {
-            presetButtons[i].onpointerdown = function () { handlePresetStart(this.getAttribute('data-preset')); };
-            presetButtons[i].onpointerup = function () { handlePresetEnd(this.getAttribute('data-preset')); };
-            presetButtons[i].onpointerleave = handlePresetCancel;
-            presetButtons[i].onpointercancel = handlePresetCancel;
-        } else {
-            presetButtons[i].onmousedown = function () { handlePresetStart(this.getAttribute('data-preset')); };
-            presetButtons[i].ontouchstart = function () { handlePresetStart(this.getAttribute('data-preset')); };
-            presetButtons[i].onmouseup = function () { handlePresetEnd(this.getAttribute('data-preset')); };
-            presetButtons[i].ontouchend = function () { handlePresetEnd(this.getAttribute('data-preset')); };
-            presetButtons[i].onmouseleave = handlePresetCancel;
-            presetButtons[i].ontouchcancel = handlePresetCancel;
-        }
+        presetButtons[i].onmousedown = function () { handlePresetStart(this.getAttribute('data-preset')); };
+        presetButtons[i].ontouchstart = function () { handlePresetStart(this.getAttribute('data-preset')); };
+        presetButtons[i].onmouseup = function () { handlePresetEnd(this.getAttribute('data-preset')); };
+        presetButtons[i].ontouchend = function () { handlePresetEnd(this.getAttribute('data-preset')); };
+        presetButtons[i].onmouseleave = handlePresetCancel;
+        presetButtons[i].ontouchcancel = handlePresetCancel;
     }
 
     updateNoiseBalanceReadout();
     updateNoiseGain();
     updateNoiseUI();
-
-    audio.addEventListener('play', function () {
-        isPlaying = true;
-        updateActivePresetButtons();
-    });
-    audio.addEventListener('playing', function () {
-        isPlaying = true;
-        pendingPlayRequest = false;
-        awaitingUserGesture = false;
-        clearPlayRetry();
-        logPlaybackEvent('playing');
-    });
-    audio.addEventListener('pause', function () {
-        isPlaying = false;
-        updateActivePresetButtons();
-    });
-    audio.addEventListener('ended', function () {
-        isPlaying = false;
-        updateActivePresetButtons();
-    });
-    audio.addEventListener('error', function () {
-        logPlaybackEvent('error', audio.error);
-        pendingPlayRequest = false;
-        isPlaying = false;
-        clearPlayRetry();
-        showModeMessage('PLAYBACK ERROR');
-    });
 
     if (document.readyState === 'complete' || document.readyState === 'interactive') {
         setTimeout(init, 0);
@@ -1134,9 +979,6 @@
     } else {
         window.onload = init;
     }
-
-    document.addEventListener('touchend', handleUserGesture, { passive: true });
-    document.addEventListener('click', handleUserGesture);
 </script>
 </body>
 </html>
