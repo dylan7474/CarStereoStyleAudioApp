@@ -284,6 +284,16 @@
     var noiseType = 'white';
     var noiseIsOn = false;
 
+    function logPlaybackEvent(eventName, detail) {
+        if (!window.console || !window.console.log) return;
+        var message = '[Legacy Playback] ' + eventName;
+        if (typeof detail !== 'undefined') {
+            window.console.log(message, detail);
+        } else {
+            window.console.log(message);
+        }
+    }
+
     function getQueryParam(name) {
         var match = new RegExp('[?&]' + name + '=([^&]+)').exec(window.location.search);
         return match ? decodeURIComponent(match[1].replace(/\+/g, ' ')) : null;
@@ -797,16 +807,36 @@
     function safePlay() {
         var playPromise;
         try {
+            logPlaybackEvent('play-attempt', { src: audio.currentSrc || audio.src, time: audio.currentTime });
             playPromise = audio.play();
         } catch (e) {
-            showModeMessage('TAP PLAY TO START');
+            logPlaybackEvent('play-exception', e);
+            showModeMessage('TAP DISPLAY TO START');
             return;
         }
         if (playPromise && typeof playPromise.then === 'function') {
-            playPromise.catch(function () {
-                showModeMessage('TAP PLAY TO START');
+            playPromise.then(function () {
+                logPlaybackEvent('play-started');
+            }).catch(function (err) {
+                logPlaybackEvent('play-blocked', err);
+                showModeMessage('TAP DISPLAY TO START');
             });
         }
+    }
+
+    function togglePlayback() {
+        if (!audio.src) {
+            showModeMessage('SELECT A SOURCE');
+            return;
+        }
+        if (audio.paused) {
+            safePlay();
+            showModeMessage('PLAY');
+        } else {
+            audio.pause();
+            showModeMessage('PAUSE');
+        }
+        updateActivePresetButtons();
     }
 
     function bindTap(element, handler) {
@@ -910,6 +940,7 @@
     }
 
     audio.addEventListener('canplay', function () {
+        logPlaybackEvent('canplay');
         if (pendingResumeTime > 0) {
             audio.currentTime = pendingResumeTime;
             pendingResumeTime = 0;
@@ -956,6 +987,7 @@
 
     bindTap(document.getElementById('prev-btn'), function () { smartSeek(-15); });
     bindTap(document.getElementById('next-btn'), function () { smartSeek(30); });
+    bindTap(document.getElementById('display-title'), togglePlayback);
 
     var presetButtons = document.querySelectorAll('[data-preset]');
     var i;
@@ -982,6 +1014,10 @@
     audio.addEventListener('play', updateActivePresetButtons);
     audio.addEventListener('pause', updateActivePresetButtons);
     audio.addEventListener('ended', updateActivePresetButtons);
+    audio.addEventListener('error', function () {
+        logPlaybackEvent('error', audio.error);
+        showModeMessage('PLAYBACK ERROR');
+    });
 
     if (document.readyState === 'complete' || document.readyState === 'interactive') {
         setTimeout(init, 0);
