@@ -263,6 +263,7 @@
     var maxPlayAttempts = 6;
     var playRetryTimer = null;
     var awaitingUserGesture = false;
+    var isPlaying = false;
     var isDragging = false;
     var sleepTimerId = null;
     var sleepIntervalId = null;
@@ -634,11 +635,14 @@
             var activeUrl = state.currentSource && state.currentSource.data ? state.currentSource.data.url : null;
             var presetUrl = preset.data ? preset.data.url : null;
             if (presetUrl && activeUrl && presetUrl === activeUrl) {
-                if (audio.paused) {
+                if (!isPlaying && audio.paused) {
                     requestPlay('preset');
                     showModeMessage('PLAY');
                 } else {
                     audio.pause();
+                    pendingPlayRequest = false;
+                    clearPlayRetry();
+                    isPlaying = false;
                     showModeMessage('PAUSE');
                 }
                 updateActivePresetButtons();
@@ -694,9 +698,9 @@
             var isActive = preset && preset.data && activeUrl && preset.data.url === activeUrl;
             var baseClass = buttons[i].className.replace(' preset-active', '').replace(' preset-paused', '');
             buttons[i].className = baseClass;
-            if (isActive && !audio.paused) {
+            if (isActive && isPlaying) {
                 buttons[i].className += ' preset-active';
-            } else if (isActive && audio.paused) {
+            } else if (isActive && !isPlaying) {
                 buttons[i].className += ' preset-paused';
             }
         }
@@ -892,13 +896,14 @@
             showModeMessage('SELECT A SOURCE');
             return;
         }
-        if (audio.paused) {
+        if (!isPlaying && audio.paused) {
             requestPlay('toggle');
             showModeMessage('PLAY');
         } else {
             audio.pause();
             pendingPlayRequest = false;
             clearPlayRetry();
+            isPlaying = false;
             showModeMessage('PAUSE');
         }
         updateActivePresetButtons();
@@ -1095,18 +1100,29 @@
     updateNoiseGain();
     updateNoiseUI();
 
-    audio.addEventListener('play', updateActivePresetButtons);
+    audio.addEventListener('play', function () {
+        isPlaying = true;
+        updateActivePresetButtons();
+    });
     audio.addEventListener('playing', function () {
+        isPlaying = true;
         pendingPlayRequest = false;
         awaitingUserGesture = false;
         clearPlayRetry();
         logPlaybackEvent('playing');
     });
-    audio.addEventListener('pause', updateActivePresetButtons);
-    audio.addEventListener('ended', updateActivePresetButtons);
+    audio.addEventListener('pause', function () {
+        isPlaying = false;
+        updateActivePresetButtons();
+    });
+    audio.addEventListener('ended', function () {
+        isPlaying = false;
+        updateActivePresetButtons();
+    });
     audio.addEventListener('error', function () {
         logPlaybackEvent('error', audio.error);
         pendingPlayRequest = false;
+        isPlaying = false;
         clearPlayRetry();
         showModeMessage('PLAYBACK ERROR');
     });
