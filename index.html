@@ -117,7 +117,7 @@
                     <span class="text-[10px] font-black opacity-30 tracking-tighter">NOISE/STREAM</span>
                     <span id="noise-balance-readout-mobile" class="text-[10px] font-semibold opacity-60">Noise 33% · Stream 67%</span>
                 </div>
-                <input type="range" id="noise-balance-mobile" class="balance-bar noise-balance" min="0.6" max="1.8" step="0.05" value="1.0">
+                <input type="range" id="noise-balance-mobile" class="balance-bar noise-balance" min="0" max="1" step="0.01" value="0.33">
             </div>
 
             <div class="hidden sm:flex items-center gap-6">
@@ -125,7 +125,7 @@
                     <span class="text-[10px] font-black opacity-30 tracking-tighter">NOISE/STREAM</span>
                     <span id="noise-balance-readout" class="text-[10px] font-semibold opacity-60">Noise 33% · Stream 67%</span>
                 </div>
-                <input type="range" id="noise-balance" class="balance-bar noise-balance flex-1" min="0.6" max="1.8" step="0.05" value="1.0">
+                <input type="range" id="noise-balance" class="balance-bar noise-balance flex-1" min="0" max="1" step="0.01" value="0.33">
             </div>
 
             <div class="grid grid-cols-2 gap-3">
@@ -149,7 +149,7 @@
                 </div>
                 <div class="sm:hidden flex flex-col items-center gap-2 w-10">
                     <span class="text-[10px] font-black opacity-30 tracking-tighter">MIX</span>
-                    <input type="range" id="noise-balance-vertical" class="balance-bar noise-balance vol-vertical" min="0.6" max="1.8" step="0.05" value="1.0">
+                    <input type="range" id="noise-balance-vertical" class="balance-bar noise-balance vol-vertical" min="0" max="1" step="0.01" value="0.33">
                 </div>
             </div>
         </div>
@@ -205,8 +205,8 @@
     let noiseGain = null;
     const baseNoiseGain = 0.12;
     const blueNoiseGainBoost = 3;
-    const noiseBalanceLimits = { min: 0.6, max: 1.8 };
-    let noiseBalance = 1.0;
+    const noiseBalanceLimits = { min: 0, max: 1 };
+    let noiseBalance = 0.33;
     let noiseType = 'white';
     let noiseIsOn = false;
     function showModeMessage(message, timeout = 3000) {
@@ -249,7 +249,7 @@
         const mix = getNoiseMix();
         if (noiseGain) {
             const noiseTypeBoost = noiseType === 'blue' ? blueNoiseGainBoost : 1;
-            noiseGain.gain.value = baseNoiseGain * noiseBalance * noiseTypeBoost;
+            noiseGain.gain.value = baseNoiseGain * mix * noiseTypeBoost;
         }
         audio.volume = 1 - mix;
     }

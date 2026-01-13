@@ -193,7 +193,7 @@
             <div class="mix-row">
                 <span class="label">Noise/Stream Mix</span>
                 <div class="label" id="noise-balance-readout">Noise 33% · Stream 67%</div>
-                <input type="range" id="noise-balance" min="0.6" max="1.8" step="0.05" value="1.0">
+                <input type="range" id="noise-balance" min="0" max="1" step="0.01" value="0.33">
             </div>
         </div>
 
@@ -279,8 +279,8 @@
     var noiseGain = null;
     var baseNoiseGain = 0.12;
     var blueNoiseGainBoost = 3;
-    var noiseBalanceLimits = { min: 0.6, max: 1.8 };
-    var noiseBalance = 1.0;
+    var noiseBalanceLimits = { min: 0, max: 1 };
+    var noiseBalance = 0.33;
     var noiseType = 'white';
     var noiseIsOn = false;
 
@@ -336,7 +336,7 @@
         var mix = getNoiseMix();
         if (noiseGain) {
             var noiseTypeBoost = noiseType === 'blue' ? blueNoiseGainBoost : 1;
-            noiseGain.gain.value = baseNoiseGain * noiseBalance * noiseTypeBoost;
+            noiseGain.gain.value = baseNoiseGain * mix * noiseTypeBoost;
         }
         audio.volume = 1 - mix;
     }
