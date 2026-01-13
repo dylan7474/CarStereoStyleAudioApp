@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CarStereo Infotainment (Legacy)</title>
+    <title>CarStereo Infotainment (Legacy) v4.4</title>
     <style>
         body {
             margin: 0;
@@ -904,11 +904,18 @@
         updateActivePresetButtons();
     }
 
+    var lastTouchTime = 0;
+
     function bindTap(element, handler) {
         if (!element || !handler) return;
-        element.onclick = handler;
+        element.onclick = function (event) {
+            if (event && event.preventDefault) event.preventDefault();
+            if (Date.now() - lastTouchTime < 500) return;
+            handler();
+        };
         element.ontouchstart = function (event) {
             if (event && event.preventDefault) event.preventDefault();
+            lastTouchTime = Date.now();
             handler();
         };
     }
