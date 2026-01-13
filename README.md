@@ -30,6 +30,7 @@ CarStereoStyleAudioApp is a lightweight web app that presents a car-stereo-inspi
 - Adjusted the noise/stream mix slider so endpoints reach true 0%/100% levels for both sources.
 - Removed the oversized play button so channel presets can handle play/stop behavior instead.
 - Channel preset buttons now toggle play/pause when the active channel is pressed.
+- Preset buttons now display a paused state so play status is visible in both layouts.
 
 ## Improvement Ideas
 
