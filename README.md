@@ -27,6 +27,7 @@ CarStereoStyleAudioApp is a lightweight web app that presents a car-stereo-inspi
 - Merged the stream volume and noise balance into a single mix control that works for both white and blue noise.
 - Boosted blue noise output to better match white noise playback volume.
 - Mirrored the noise toggle, noise type, and mix balance controls in the legacy layout for parity.
+- Adjusted the noise/stream mix slider so endpoints reach true 0%/100% levels for both sources.
 
 ## Improvement Ideas
 
