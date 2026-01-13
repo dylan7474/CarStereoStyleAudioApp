@@ -258,6 +258,10 @@
     };
 
     var pendingResumeTime = 0;
+    var pendingPlayRequest = false;
+    var playAttemptCount = 0;
+    var maxPlayAttempts = 6;
+    var playRetryTimer = null;
     var isDragging = false;
     var sleepTimerId = null;
     var sleepIntervalId = null;
@@ -284,15 +288,32 @@
     var noiseType = 'white';
     var noiseIsOn = false;
 
+    var playbackLog = [];
+
     function logPlaybackEvent(eventName, detail) {
-        if (!window.console || !window.console.log) return;
-        var message = '[Legacy Playback] ' + eventName;
-        if (typeof detail !== 'undefined') {
-            window.console.log(message, detail);
-        } else {
-            window.console.log(message);
+        var hasConsole = window.console && window.console.log;
+        var entry = {
+            name: eventName,
+            detail: typeof detail === 'undefined' ? null : detail,
+            time: new Date().toISOString()
+        };
+        playbackLog.push(entry);
+        if (playbackLog.length > 100) {
+            playbackLog.shift();
+        }
+        if (hasConsole) {
+            var message = '[Legacy Playback] ' + eventName;
+            if (typeof detail !== 'undefined') {
+                window.console.log(message, detail);
+            } else {
+                window.console.log(message);
+            }
         }
     }
+
+    window.getLegacyPlaybackLog = function () {
+        return playbackLog.slice();
+    };
 
     function getQueryParam(name) {
         var match = new RegExp('[?&]' + name + '=([^&]+)').exec(window.location.search);
@@ -575,7 +596,7 @@
         audio.pause();
         audio.src = track.url;
         audio.load();
-        safePlay();
+        requestPlay('book');
         toggleView(false);
         updateActivePresetButtons();
     }
@@ -586,7 +607,7 @@
         audio.pause();
         audio.src = station.url;
         audio.load();
-        safePlay();
+        requestPlay('radio');
         toggleView(false);
         updateActivePresetButtons();
     }
@@ -613,7 +634,7 @@
             var presetUrl = preset.data ? preset.data.url : null;
             if (presetUrl && activeUrl && presetUrl === activeUrl) {
                 if (audio.paused) {
-                    safePlay();
+                    requestPlay('preset');
                     showModeMessage('PLAY');
                 } else {
                     audio.pause();
@@ -804,22 +825,60 @@
         }
     }
 
-    function safePlay() {
+    function clearPlayRetry() {
+        if (playRetryTimer) {
+            clearTimeout(playRetryTimer);
+            playRetryTimer = null;
+        }
+    }
+
+    function schedulePlayRetry(reason) {
+        if (!pendingPlayRequest || playAttemptCount >= maxPlayAttempts) {
+            if (pendingPlayRequest) {
+                logPlaybackEvent('play-giveup', { reason: reason, attempts: playAttemptCount });
+            }
+            pendingPlayRequest = false;
+            return;
+        }
+        var delay = Math.min(1500, 300 * playAttemptCount);
+        clearPlayRetry();
+        playRetryTimer = setTimeout(function () {
+            attemptPlay(reason);
+        }, delay);
+    }
+
+    function requestPlay(reason) {
+        pendingPlayRequest = true;
+        playAttemptCount = 0;
+        attemptPlay(reason || 'request');
+    }
+
+    function attemptPlay(reason) {
         var playPromise;
         try {
-            logPlaybackEvent('play-attempt', { src: audio.currentSrc || audio.src, time: audio.currentTime });
+            playAttemptCount += 1;
+            logPlaybackEvent('play-attempt', {
+                src: audio.currentSrc || audio.src,
+                time: audio.currentTime,
+                reason: reason,
+                attempt: playAttemptCount
+            });
             playPromise = audio.play();
         } catch (e) {
             logPlaybackEvent('play-exception', e);
             showModeMessage('TAP DISPLAY TO START');
+            schedulePlayRetry('exception');
             return;
         }
         if (playPromise && typeof playPromise.then === 'function') {
             playPromise.then(function () {
+                pendingPlayRequest = false;
                 logPlaybackEvent('play-started');
+                clearPlayRetry();
             }).catch(function (err) {
                 logPlaybackEvent('play-blocked', err);
                 showModeMessage('TAP DISPLAY TO START');
+                schedulePlayRetry('blocked');
             });
         }
     }
@@ -830,10 +889,12 @@
             return;
         }
         if (audio.paused) {
-            safePlay();
+            requestPlay('toggle');
             showModeMessage('PLAY');
         } else {
             audio.pause();
+            pendingPlayRequest = false;
+            clearPlayRetry();
             showModeMessage('PAUSE');
         }
         updateActivePresetButtons();
@@ -945,6 +1006,9 @@
             audio.currentTime = pendingResumeTime;
             pendingResumeTime = 0;
         }
+        if (pendingPlayRequest && audio.paused) {
+            attemptPlay('canplay');
+        }
     });
 
     audio.ontimeupdate = function () {
@@ -1012,10 +1076,17 @@
     updateNoiseUI();
 
     audio.addEventListener('play', updateActivePresetButtons);
+    audio.addEventListener('playing', function () {
+        pendingPlayRequest = false;
+        clearPlayRetry();
+        logPlaybackEvent('playing');
+    });
     audio.addEventListener('pause', updateActivePresetButtons);
     audio.addEventListener('ended', updateActivePresetButtons);
     audio.addEventListener('error', function () {
         logPlaybackEvent('error', audio.error);
+        pendingPlayRequest = false;
+        clearPlayRetry();
         showModeMessage('PLAYBACK ERROR');
     });
 
