@@ -90,12 +90,8 @@
             margin-bottom: 12px;
         }
         .controls .button {
-            width: 30%;
+            width: 48%;
             text-align: center;
-        }
-        .controls .button.main {
-            background: #10b981;
-            color: #0a0c10;
         }
         .controls .button.alt {
             background: #1f2937;
@@ -187,7 +183,6 @@
         <div class="panel">
             <div class="controls">
                 <button class="button alt" id="prev-btn">⏮</button>
-                <button class="button main" id="play-btn">▶</button>
                 <button class="button alt" id="next-btn">⏭</button>
             </div>
             <div class="mix-row">
@@ -483,14 +478,6 @@
 
     function pad(value) {
         return value < 10 ? '0' + value : '' + value;
-    }
-
-    function togglePlay() {
-        if (audio.paused) {
-            safePlay();
-        } else {
-            audio.pause();
-        }
     }
 
     function toggleDayMode() {
@@ -902,12 +889,6 @@
         });
     }
 
-    audio.addEventListener('play', function () {
-        document.getElementById('play-btn').textContent = '||';
-    });
-    audio.addEventListener('pause', function () {
-        document.getElementById('play-btn').textContent = '▶';
-    });
     audio.addEventListener('canplay', function () {
         if (pendingResumeTime > 0) {
             audio.currentTime = pendingResumeTime;
@@ -953,7 +934,6 @@
     bindTap(document.getElementById('sleep-15'), function () { setSleepTimer(15); });
     bindTap(document.getElementById('sleep-30'), function () { setSleepTimer(30); });
 
-    bindTap(document.getElementById('play-btn'), togglePlay);
     bindTap(document.getElementById('prev-btn'), function () { smartSeek(-15); });
     bindTap(document.getElementById('next-btn'), function () { smartSeek(30); });
 

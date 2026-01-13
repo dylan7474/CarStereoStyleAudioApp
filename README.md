@@ -4,10 +4,10 @@ CarStereoStyleAudioApp is a lightweight web app that presents a car-stereo-inspi
 
 ## Basic Controls
 
-- **Play/Pause**: Toggle playback for the current track.
 - **Next/Previous**: Skip forward or backward through the playlist.
 - **Noise/Stream Mix**: Balance the ambient noise layer against the main audio stream.
 - **Source**: Switch between available inputs or playlists.
+- **Channel Buttons**: Use preset channels to start or stop playback.
 - **Sleep Timer**: Choose a 15 or 30 minute timer to stop playback.
 
 ## Recent Updates
@@ -28,6 +28,7 @@ CarStereoStyleAudioApp is a lightweight web app that presents a car-stereo-inspi
 - Boosted blue noise output to better match white noise playback volume.
 - Mirrored the noise toggle, noise type, and mix balance controls in the legacy layout for parity.
 - Adjusted the noise/stream mix slider so endpoints reach true 0%/100% levels for both sources.
+- Removed the oversized play button so channel presets can handle play/stop behavior instead.
 
 ## Improvement Ideas
 
