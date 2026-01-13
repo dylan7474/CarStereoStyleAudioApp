@@ -594,6 +594,18 @@
         clearTimeout(state.longPressTimer);
         if (!state.isHolding && state.presets[id]) {
             var preset = state.presets[id];
+            var activeUrl = state.currentSource && state.currentSource.data ? state.currentSource.data.url : null;
+            var presetUrl = preset.data ? preset.data.url : null;
+            if (presetUrl && activeUrl && presetUrl === activeUrl) {
+                if (audio.paused) {
+                    safePlay();
+                    showModeMessage('PLAY');
+                } else {
+                    audio.pause();
+                    showModeMessage('PAUSE');
+                }
+                return;
+            }
             if (preset.type === 'radio') {
                 playRadio(preset.data);
             } else {

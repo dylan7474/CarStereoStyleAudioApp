@@ -438,6 +438,18 @@
         clearTimeout(state.longPressTimer);
         if (!state.isHolding && state.presets[id]) {
             const p = state.presets[id];
+            const activeUrl = state.currentSource?.data?.url;
+            const presetUrl = p.data?.url;
+            if (presetUrl && activeUrl && presetUrl === activeUrl) {
+                if (audio.paused) {
+                    audio.play();
+                    showModeMessage('PLAY');
+                } else {
+                    audio.pause();
+                    showModeMessage('PAUSE');
+                }
+                return;
+            }
             p.type === 'radio' ? playRadio(p.data) : playBook(p.data.bookName, p.data.trackIdx);
         }
     }
