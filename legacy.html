@@ -109,6 +109,11 @@
         .preset-active {
             box-shadow: 0 0 10px #10b981;
         }
+        .preset-paused {
+            box-shadow: 0 0 10px #f59e0b;
+            background: rgba(245, 158, 11, 0.2);
+            color: #f59e0b;
+        }
         .library-overlay {
             position: fixed;
             top: 0;
@@ -604,6 +609,7 @@
                     audio.pause();
                     showModeMessage('PAUSE');
                 }
+                updateActivePresetButtons();
                 return;
             }
             if (preset.type === 'radio') {
@@ -654,10 +660,12 @@
             var presetId = buttons[i].getAttribute('data-preset');
             var preset = state.presets[presetId];
             var isActive = preset && preset.data && activeUrl && preset.data.url === activeUrl;
-            if (isActive) {
-                buttons[i].className = buttons[i].className + ' preset-active';
-            } else {
-                buttons[i].className = buttons[i].className.replace(' preset-active', '');
+            var baseClass = buttons[i].className.replace(' preset-active', '').replace(' preset-paused', '');
+            buttons[i].className = baseClass;
+            if (isActive && !audio.paused) {
+                buttons[i].className += ' preset-active';
+            } else if (isActive && audio.paused) {
+                buttons[i].className += ' preset-paused';
             }
         }
     }
@@ -952,17 +960,28 @@
     var presetButtons = document.querySelectorAll('[data-preset]');
     var i;
     for (i = 0; i < presetButtons.length; i++) {
-        presetButtons[i].onmousedown = function () { handlePresetStart(this.getAttribute('data-preset')); };
-        presetButtons[i].ontouchstart = function () { handlePresetStart(this.getAttribute('data-preset')); };
-        presetButtons[i].onmouseup = function () { handlePresetEnd(this.getAttribute('data-preset')); };
-        presetButtons[i].ontouchend = function () { handlePresetEnd(this.getAttribute('data-preset')); };
-        presetButtons[i].onmouseleave = handlePresetCancel;
-        presetButtons[i].ontouchcancel = handlePresetCancel;
+        if (window.PointerEvent) {
+            presetButtons[i].onpointerdown = function () { handlePresetStart(this.getAttribute('data-preset')); };
+            presetButtons[i].onpointerup = function () { handlePresetEnd(this.getAttribute('data-preset')); };
+            presetButtons[i].onpointerleave = handlePresetCancel;
+            presetButtons[i].onpointercancel = handlePresetCancel;
+        } else {
+            presetButtons[i].onmousedown = function () { handlePresetStart(this.getAttribute('data-preset')); };
+            presetButtons[i].ontouchstart = function () { handlePresetStart(this.getAttribute('data-preset')); };
+            presetButtons[i].onmouseup = function () { handlePresetEnd(this.getAttribute('data-preset')); };
+            presetButtons[i].ontouchend = function () { handlePresetEnd(this.getAttribute('data-preset')); };
+            presetButtons[i].onmouseleave = handlePresetCancel;
+            presetButtons[i].ontouchcancel = handlePresetCancel;
+        }
     }
 
     updateNoiseBalanceReadout();
     updateNoiseGain();
     updateNoiseUI();
+
+    audio.addEventListener('play', updateActivePresetButtons);
+    audio.addEventListener('pause', updateActivePresetButtons);
+    audio.addEventListener('ended', updateActivePresetButtons);
 
     if (document.readyState === 'complete' || document.readyState === 'interactive') {
         setTimeout(init, 0);

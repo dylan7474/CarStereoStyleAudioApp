@@ -29,6 +29,7 @@
         }
         .preset-btn { background: var(--glass); border: 1px solid rgba(255,255,255,0.05); transition: all 0.3s ease; border-radius: 1.25rem; }
         .preset-active { background: var(--accent) !important; color: white !important; box-shadow: 0 0 15px var(--accent); border-color: transparent; }
+        .preset-paused { background: rgba(245, 158, 11, 0.2) !important; color: #f59e0b !important; box-shadow: 0 0 12px rgba(245, 158, 11, 0.4); border-color: rgba(245, 158, 11, 0.4); }
         .lib-p-active { background: var(--accent) !important; color: white !important; box-shadow: 0 0 15px var(--accent); border-color: transparent; }
         .preset-label { font-size: 0.65rem; font-weight: 600; text-transform: uppercase; opacity: 0.7; }
         .time-display {
@@ -448,6 +449,7 @@
                     audio.pause();
                     showModeMessage('PAUSE');
                 }
+                updateActivePresetButtons();
                 return;
             }
             p.type === 'radio' ? playRadio(p.data) : playBook(p.data.bookName, p.data.trackIdx);
@@ -469,11 +471,13 @@
 
     function updateActivePresetButtons() {
         const activeUrl = state.currentSource?.data?.url;
+        const isPaused = audio.paused;
         for (let i = 1; i <= 6; i++) {
             const btn = document.getElementById(`btn-${i}`);
             const preset = state.presets[i];
             const isActive = preset?.data?.url && activeUrl && preset.data.url === activeUrl;
-            btn.classList.toggle('preset-active', Boolean(isActive));
+            btn.classList.toggle('preset-active', Boolean(isActive && !isPaused));
+            btn.classList.toggle('preset-paused', Boolean(isActive && isPaused));
         }
     }
 
@@ -577,6 +581,10 @@
             if (state.currentSource?.type === 'book' && Math.floor(audio.currentTime) % 10 === 0) savePosition();
         }
     };
+
+    audio.addEventListener('play', updateActivePresetButtons);
+    audio.addEventListener('pause', updateActivePresetButtons);
+    audio.addEventListener('ended', updateActivePresetButtons);
 
     function updateCurrentTimeDisplay(value) {
         const timeText = formatTime(value);
