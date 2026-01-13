@@ -262,6 +262,7 @@
     var playAttemptCount = 0;
     var maxPlayAttempts = 6;
     var playRetryTimer = null;
+    var awaitingUserGesture = false;
     var isDragging = false;
     var sleepTimerId = null;
     var sleepIntervalId = null;
@@ -867,17 +868,20 @@
         } catch (e) {
             logPlaybackEvent('play-exception', e);
             showModeMessage('TAP DISPLAY TO START');
+            awaitingUserGesture = true;
             schedulePlayRetry('exception');
             return;
         }
         if (playPromise && typeof playPromise.then === 'function') {
             playPromise.then(function () {
                 pendingPlayRequest = false;
+                awaitingUserGesture = false;
                 logPlaybackEvent('play-started');
                 clearPlayRetry();
             }).catch(function (err) {
                 logPlaybackEvent('play-blocked', err);
                 showModeMessage('TAP DISPLAY TO START');
+                awaitingUserGesture = true;
                 schedulePlayRetry('blocked');
             });
         }
@@ -907,6 +911,15 @@
             if (event && event.preventDefault) event.preventDefault();
             handler();
         };
+    }
+
+    function handleUserGesture() {
+        if (noiseContext && noiseContext.state === 'suspended') {
+            noiseContext.resume();
+        }
+        if (awaitingUserGesture && pendingPlayRequest && audio.paused) {
+            requestPlay('user-gesture');
+        }
     }
 
     function parseLinks(htmlText) {
@@ -1078,6 +1091,7 @@
     audio.addEventListener('play', updateActivePresetButtons);
     audio.addEventListener('playing', function () {
         pendingPlayRequest = false;
+        awaitingUserGesture = false;
         clearPlayRetry();
         logPlaybackEvent('playing');
     });
@@ -1097,6 +1111,9 @@
     } else {
         window.onload = init;
     }
+
+    document.addEventListener('touchend', handleUserGesture, { passive: true });
+    document.addEventListener('click', handleUserGesture);
 </script>
 </body>
 </html>
