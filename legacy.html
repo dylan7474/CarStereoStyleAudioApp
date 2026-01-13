@@ -635,7 +635,7 @@
             var activeUrl = state.currentSource && state.currentSource.data ? state.currentSource.data.url : null;
             var presetUrl = preset.data ? preset.data.url : null;
             if (presetUrl && activeUrl && presetUrl === activeUrl) {
-                if (!isPlaying && audio.paused) {
+                if (!isPlaying) {
                     requestPlay('preset');
                     showModeMessage('PLAY');
                 } else {
@@ -896,7 +896,7 @@
             showModeMessage('SELECT A SOURCE');
             return;
         }
-        if (!isPlaying && audio.paused) {
+        if (!isPlaying) {
             requestPlay('toggle');
             showModeMessage('PLAY');
         } else {
