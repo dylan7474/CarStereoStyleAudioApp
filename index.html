@@ -134,12 +134,12 @@
                 <button onclick="setSleepTimer(30)" class="glass-card bg-white/5 py-3 text-xs font-semibold tracking-wide uppercase active:scale-95 transition-transform">Sleep in 30 mins</button>
             </div>
             <div class="grid grid-cols-3 sm:grid-cols-6 gap-3">
-                <button onpointerdown="handlePresetStart(1)" onpointerup="handlePresetEnd(1)" onpointercancel="handlePresetCancel()" onpointerleave="handlePresetCancel()" onclick="handlePresetClick(1)" class="preset-btn h-20 flex flex-col items-center justify-center gap-1" id="btn-1"><span class="text-xl font-bold">1</span><span class="preset-label truncate w-full px-2" id="label-1"></span></button>
-                <button onpointerdown="handlePresetStart(2)" onpointerup="handlePresetEnd(2)" onpointercancel="handlePresetCancel()" onpointerleave="handlePresetCancel()" onclick="handlePresetClick(2)" class="preset-btn h-20 flex flex-col items-center justify-center gap-1" id="btn-2"><span class="text-xl font-bold">2</span><span class="preset-label truncate w-full px-2" id="label-2"></span></button>
-                <button onpointerdown="handlePresetStart(3)" onpointerup="handlePresetEnd(3)" onpointercancel="handlePresetCancel()" onpointerleave="handlePresetCancel()" onclick="handlePresetClick(3)" class="preset-btn h-20 flex flex-col items-center justify-center gap-1" id="btn-3"><span class="text-xl font-bold">3</span><span class="preset-label truncate w-full px-2" id="label-3"></span></button>
-                <button onpointerdown="handlePresetStart(4)" onpointerup="handlePresetEnd(4)" onpointercancel="handlePresetCancel()" onpointerleave="handlePresetCancel()" onclick="handlePresetClick(4)" class="preset-btn h-20 flex flex-col items-center justify-center gap-1" id="btn-4"><span class="text-xl font-bold">4</span><span class="preset-label truncate w-full px-2" id="label-4"></span></button>
-                <button onpointerdown="handlePresetStart(5)" onpointerup="handlePresetEnd(5)" onpointercancel="handlePresetCancel()" onpointerleave="handlePresetCancel()" onclick="handlePresetClick(5)" class="preset-btn h-20 flex flex-col items-center justify-center gap-1" id="btn-5"><span class="text-xl font-bold">5</span><span class="preset-label truncate w-full px-2" id="label-5"></span></button>
-                <button onpointerdown="handlePresetStart(6)" onpointerup="handlePresetEnd(6)" onpointercancel="handlePresetCancel()" onpointerleave="handlePresetCancel()" onclick="handlePresetClick(6)" class="preset-btn h-20 flex flex-col items-center justify-center gap-1" id="btn-6"><span class="text-xl font-bold">6</span><span class="preset-label truncate w-full px-2" id="label-6"></span></button>
+                <button onpointerdown="handlePresetStart(1)" onpointerup="handlePresetEnd(1)" onpointercancel="handlePresetCancel()" onpointerleave="handlePresetCancel()" class="preset-btn h-20 flex flex-col items-center justify-center gap-1" id="btn-1"><span class="text-xl font-bold">1</span><span class="preset-label truncate w-full px-2" id="label-1"></span></button>
+                <button onpointerdown="handlePresetStart(2)" onpointerup="handlePresetEnd(2)" onpointercancel="handlePresetCancel()" onpointerleave="handlePresetCancel()" class="preset-btn h-20 flex flex-col items-center justify-center gap-1" id="btn-2"><span class="text-xl font-bold">2</span><span class="preset-label truncate w-full px-2" id="label-2"></span></button>
+                <button onpointerdown="handlePresetStart(3)" onpointerup="handlePresetEnd(3)" onpointercancel="handlePresetCancel()" onpointerleave="handlePresetCancel()" class="preset-btn h-20 flex flex-col items-center justify-center gap-1" id="btn-3"><span class="text-xl font-bold">3</span><span class="preset-label truncate w-full px-2" id="label-3"></span></button>
+                <button onpointerdown="handlePresetStart(4)" onpointerup="handlePresetEnd(4)" onpointercancel="handlePresetCancel()" onpointerleave="handlePresetCancel()" class="preset-btn h-20 flex flex-col items-center justify-center gap-1" id="btn-4"><span class="text-xl font-bold">4</span><span class="preset-label truncate w-full px-2" id="label-4"></span></button>
+                <button onpointerdown="handlePresetStart(5)" onpointerup="handlePresetEnd(5)" onpointercancel="handlePresetCancel()" onpointerleave="handlePresetCancel()" class="preset-btn h-20 flex flex-col items-center justify-center gap-1" id="btn-5"><span class="text-xl font-bold">5</span><span class="preset-label truncate w-full px-2" id="label-5"></span></button>
+                <button onpointerdown="handlePresetStart(6)" onpointerup="handlePresetEnd(6)" onpointercancel="handlePresetCancel()" onpointerleave="handlePresetCancel()" class="preset-btn h-20 flex flex-col items-center justify-center gap-1" id="btn-6"><span class="text-xl font-bold">6</span><span class="preset-label truncate w-full px-2" id="label-6"></span></button>
             </div>
 
             <div class="flex gap-4 h-24 items-stretch">
@@ -184,7 +184,6 @@
     const USER_ID = new URLSearchParams(window.location.search).get('user') || 'default_stereo';
     let state = { presets: {}, radioStations: [], books: {}, currentSource: null, playbackPositions: {}, longPressTimer: null, isHolding: false, isManagerMode: false };
     let pendingResumeTime = 0;
-    let lastPresetPointerTime = 0;
     let isDragging = false;
     let sleepTimerId = null;
     let sleepIntervalId = null;
@@ -438,7 +437,6 @@
 
     function handlePresetEnd(id) {
         clearTimeout(state.longPressTimer);
-        lastPresetPointerTime = Date.now();
         if (!state.isHolding && state.presets[id]) {
             const p = state.presets[id];
             const activeUrl = state.currentSource?.data?.url;
@@ -460,14 +458,6 @@
 
     function handlePresetCancel() {
         clearTimeout(state.longPressTimer);
-    }
-
-    function handlePresetClick(id) {
-        const elapsed = Date.now() - lastPresetPointerTime;
-        if (elapsed >= 0 && elapsed < 400) {
-            return;
-        }
-        handlePresetEnd(id);
     }
 
     function updatePresetLabels() {
