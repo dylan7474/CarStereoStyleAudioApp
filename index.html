@@ -348,16 +348,12 @@
     // UI Sync for Play/Pause Button
 
     // Position Recovery
-    function applyPendingResume() {
-        if (pendingResumeTime > 0 && !isNaN(audio.duration)) {
-            const resumeTime = Math.min(pendingResumeTime, Math.max(0, audio.duration - 1));
-            audio.currentTime = resumeTime;
+    audio.addEventListener('canplay', () => {
+        if (pendingResumeTime > 0) {
+            audio.currentTime = pendingResumeTime;
             pendingResumeTime = 0;
-            audio.play().catch(() => {});
         }
-    }
-    audio.addEventListener('loadedmetadata', applyPendingResume);
-    audio.addEventListener('canplay', applyPendingResume);
+    });
 
     // Seek Bar Logic
     seekBars.forEach((bar) => {
@@ -407,30 +403,20 @@
     function toggleRadioForm() { document.getElementById('radio-form').classList.toggle('hidden'); }
 
     function playBook(bookName, trackIdx) {
-        const track = state.books[bookName]?.[trackIdx];
-        if (!track) {
-            showModeMessage('BOOK NOT FOUND');
-            return;
-        }
+        const track = state.books[bookName][trackIdx];
         state.currentSource = { type: 'book', data: { bookName, trackIdx, url: track.url, name: track.name } };
         const trackKey = `server:${track.url}`;
         pendingResumeTime = state.playbackPositions[trackKey] || 0;
-        audio.pause();
         audio.src = track.url;
-        audio.load();
-        audio.play().catch(() => {});
-        toggleView('player');
+        audio.play(); toggleView('player');
         updateActivePresetButtons();
     }
 
     function playRadio(station) {
         pendingResumeTime = 0;
         state.currentSource = { type: 'radio', data: station };
-        audio.pause();
         audio.src = station.url;
-        audio.load();
-        audio.play().catch(() => {});
-        toggleView('player');
+        audio.play(); toggleView('player');
         updateActivePresetButtons();
     }
 
