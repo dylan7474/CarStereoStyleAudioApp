@@ -98,6 +98,20 @@
                     <h2 class="time-display time-display-glow text-4xl sm:text-6xl font-bold mb-2 truncate" id="display-title">00:00</h2>
                     <div id="sleep-timer-display" class="time-display time-display-glow text-4xl sm:text-6xl font-bold uppercase tracking-widest mb-2">Sleep: Off</div>
                 </div>
+                <div class="mt-2 grid gap-1 text-[11px] sm:text-xs uppercase tracking-widest font-semibold text-emerald-200/80">
+                    <div class="flex flex-wrap gap-2">
+                        <span class="text-emerald-400">Track:</span>
+                        <span id="meta-track" class="truncate">--</span>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <span class="text-emerald-400">Author:</span>
+                        <span id="meta-author" class="truncate">--</span>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <span class="text-emerald-400">Notes:</span>
+                        <span id="meta-notes" class="truncate">--</span>
+                    </div>
+                </div>
             </div>
             
             <div class="w-full">
@@ -195,6 +209,9 @@
     const sleepDisplay = document.getElementById('sleep-timer-display');
     const defaultSleepText = sleepDisplay.textContent;
     const timeDisplay = document.getElementById('display-title');
+    const metaTrack = document.getElementById('meta-track');
+    const metaAuthor = document.getElementById('meta-author');
+    const metaNotes = document.getElementById('meta-notes');
     const noiseToggleBtn = document.getElementById('noise-toggle');
     const noiseTypeBtn = document.getElementById('noise-type-toggle');
     const noiseBalanceControls = Array.from(document.querySelectorAll('.noise-balance'));
@@ -402,6 +419,27 @@
 
     function toggleRadioForm() { document.getElementById('radio-form').classList.toggle('hidden'); }
 
+    function updateStreamMetadata() {
+        if (!metaTrack || !metaAuthor || !metaNotes) return;
+        if (!state.currentSource) {
+            metaTrack.textContent = '--';
+            metaAuthor.textContent = '--';
+            metaNotes.textContent = '--';
+            return;
+        }
+        if (state.currentSource.type === 'radio') {
+            metaTrack.textContent = state.currentSource.data?.name || 'Untitled Station';
+            metaAuthor.textContent = 'Live Broadcast';
+            metaNotes.textContent = 'Streaming Radio';
+            return;
+        }
+        const bookName = state.currentSource.data?.bookName || 'Unknown Collection';
+        const trackName = state.currentSource.data?.name || bookName;
+        metaTrack.textContent = trackName;
+        metaAuthor.textContent = bookName;
+        metaNotes.textContent = 'On-Demand Stream';
+    }
+
     function playBook(bookName, trackIdx) {
         const track = state.books[bookName][trackIdx];
         state.currentSource = { type: 'book', data: { bookName, trackIdx, url: track.url, name: track.name } };
@@ -410,6 +448,7 @@
         audio.src = track.url;
         audio.play(); toggleView('player');
         updateActivePresetButtons();
+        updateStreamMetadata();
     }
 
     function playRadio(station) {
@@ -418,6 +457,7 @@
         audio.src = station.url;
         audio.play(); toggleView('player');
         updateActivePresetButtons();
+        updateStreamMetadata();
     }
 
     function handlePresetStart(id) {
@@ -678,6 +718,7 @@
         updatePresetLabels();
         updateNoiseUI();
         updateNoiseBalanceReadout();
+        updateStreamMetadata();
         updateNoiseGain();
     }
     init();
